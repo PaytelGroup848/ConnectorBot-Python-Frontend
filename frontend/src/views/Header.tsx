@@ -35,7 +35,7 @@ export const Header = ({
     .toUpperCase()
     .slice(0, 2) || 'CB'
   return (
-    <header className="h-16 bg-white border-b border-slate-200/80 px-6 flex items-center justify-between sticky top-0 z-40">
+    <header className="h-16 bg-white border-b border-slate-200/80 px-6 flex items-center justify-between shrink-0 z-30">
       {/* Global Search Bar */}
       <div className="flex-1 max-w-md">
         <div className="relative">

@@ -51,7 +51,7 @@ export const Sidebar = ({
   ]
 
   return (
-    <aside className="w-68 bg-slate-900 text-slate-100 border-r border-slate-800 flex flex-col justify-between shrink-0 select-none h-screen sticky top-0">
+    <aside className="w-68 bg-slate-900 text-slate-100 border-r border-slate-800 flex flex-col justify-between shrink-0 select-none h-full overflow-y-auto">
       {/* Top Brand & Staff RBAC Header */}
       <div>
         <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800">
