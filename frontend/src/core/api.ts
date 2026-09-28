@@ -239,7 +239,18 @@ export const api = {
 
   // 8. Enterprise Support Tickets Queue & Engineer Actions
   async fetchTickets(): Promise<any[]> {
-    const res = await fetch(`${BASE_URL}/tickets`)
+    const headers: Record<string, string> = {}
+    if (typeof window !== 'undefined') {
+      const token =
+        window.localStorage.getItem('token') ||
+        window.localStorage.getItem('accessToken') ||
+        window.localStorage.getItem('web_token') ||
+        window.localStorage.getItem('jwt')
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+    }
+    const res = await fetch(`${BASE_URL}/tickets`, { headers })
     if (!res.ok) return []
     const json = await res.json()
     return json.data?.items || []

@@ -26,6 +26,7 @@ export interface CorporateTicketPDFData {
     root_cause_hypothesis?: string
     engineer_playbook?: string
   }
+  engineer_reply?: string
 }
 
 export function downloadCorporateTicketPDF(ticket: CorporateTicketPDFData) {
@@ -456,6 +457,15 @@ export function downloadCorporateTicketPDF(ticket: CorporateTicketPDFData) {
         ${ticket.description && ticket.description !== ticket.subject ? `<div class="issue-desc">"${ticket.description}"</div>` : ''}
       </div>
     </div>
+    ${ticket.engineer_reply ? `
+    <!-- Section 2.5: Engineer Resolution & Support Notes -->
+    <div class="section-card" style="border-left: 4px solid #10b981; background: #f0fdf4;">
+      <div class="section-title" style="color: #065f46;">💬 L2 Engineer Resolution & Update</div>
+      <div style="font-size: 13px; color: #1e293b; line-height: 1.6; font-style: italic; padding: 4px 0;">
+        "${ticket.engineer_reply}"
+      </div>
+    </div>
+    ` : ''}
 
     <!-- Section 3: Tally System Health -->
     <div class="section-card">
