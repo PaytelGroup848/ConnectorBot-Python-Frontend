@@ -35,40 +35,45 @@ export const AdminLoginView = ({ onLoginSuccess, onCancel }: AdminLoginViewProps
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center p-4 selection:bg-emerald-500 selection:text-white">
-      {/* Background Glow */}
+    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 selection:bg-[#00A3E0] selection:text-white relative overflow-hidden">
+      {/* Dynamic Background Glows matching CtrlBooks Brand Colors (Blue #00A3E0 & Green #5CBA46) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-[#00A3E0]/15 rounded-full blur-[120px]"></div>
+        <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] bg-[#5CBA46]/15 rounded-full blur-[120px]"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-slate-900/60 rounded-full blur-[140px] -z-10"></div>
       </div>
 
-      <div className="relative w-full max-w-md bg-slate-800/90 backdrop-blur-xl border border-slate-700/80 rounded-3xl shadow-2xl p-8 sm:p-10 text-white">
+      <div className="relative w-full max-w-md bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl shadow-2xl p-8 sm:p-10 text-white overflow-hidden">
+        {/* Top Accent Gradient Line matching CtrlBooks dual-color branding */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#00A3E0] via-teal-400 to-[#5CBA46]"></div>
+
         {/* Top Logo & Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-slate-900/80 rounded-2xl border border-slate-700/60 shadow-inner mb-4">
+        <div className="text-center mb-8 pt-1">
+          {/* Prominent Logo Container with crisp white backdrop for high contrast */}
+          <div className="inline-flex items-center justify-center px-7 py-3.5 bg-white rounded-2xl shadow-xl shadow-black/20 border border-slate-100/10 mb-5 transition hover:scale-[1.02]">
             <img
               src="/ctrlbooks-logo.png"
               alt="CtrlBooks Logo"
-              className="h-10 w-auto object-contain"
+              className="h-11 sm:h-12 w-auto object-contain max-w-[220px]"
               onError={(e) => {
-                // Fallback icon if image not available
                 e.currentTarget.style.display = 'none'
                 const fallback = document.getElementById('admin-login-svg-fallback')
                 if (fallback) fallback.style.display = 'flex'
               }}
             />
             <div id="admin-login-svg-fallback" className="hidden items-center space-x-2 px-2">
-              <ShieldCheck className="w-8 h-8 text-emerald-400" />
-              <span className="font-extrabold text-xl tracking-tight text-white">
-                <span className="text-emerald-400">Ctrl</span>Books
+              <ShieldCheck className="w-8 h-8 text-[#00A3E0]" />
+              <span className="font-extrabold text-2xl tracking-tight">
+                <span className="text-[#5CBA46]">Ctrl</span>
+                <span className="text-[#00A3E0]">Books</span>
               </span>
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold tracking-tight text-white">
-            Support & Admin Console
+          <h2 className="text-2xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
+            <span>Support & Admin Console</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto">
+          <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto leading-relaxed">
             Protected internal area. Enter administrator credentials to manage tickets, queues, and Tally sync.
           </p>
         </div>
@@ -95,7 +100,7 @@ export const AdminLoginView = ({ onLoginSuccess, onCancel }: AdminLoginViewProps
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@ctrlbooks.com"
                 required
-                className="w-full bg-slate-900/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition"
+                className="w-full bg-slate-950/70 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#00A3E0]/40 focus:border-[#00A3E0] transition"
               />
             </div>
           </div>
@@ -112,12 +117,12 @@ export const AdminLoginView = ({ onLoginSuccess, onCancel }: AdminLoginViewProps
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password..."
                 required
-                className="w-full bg-slate-900/80 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition"
+                className="w-full bg-slate-950/70 border border-slate-700/80 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#00A3E0]/40 focus:border-[#00A3E0] transition"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -127,7 +132,7 @@ export const AdminLoginView = ({ onLoginSuccess, onCancel }: AdminLoginViewProps
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-emerald-500/25 transition duration-150 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+            className="w-full mt-2 bg-gradient-to-r from-[#00A3E0] via-[#24b08f] to-[#5CBA46] hover:opacity-95 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-[#00A3E0]/20 hover:shadow-[#5CBA46]/25 transition duration-150 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -144,11 +149,11 @@ export const AdminLoginView = ({ onLoginSuccess, onCancel }: AdminLoginViewProps
         </form>
 
         {/* Footer Link back to Customer View */}
-        <div className="mt-6 pt-5 border-t border-slate-700/60 text-center">
+        <div className="mt-6 pt-5 border-t border-slate-800 text-center">
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white transition cursor-pointer"
+            className="inline-flex items-center space-x-1.5 text-xs text-slate-400 hover:text-[#00A3E0] transition cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Return to Customer View (ctrlbooks.com)</span>

@@ -236,7 +236,7 @@ export function ConnectorApp() {
       {/* Environment Role Switcher Bar: Customer Portal vs Internal Staff Admin Console */}
       <div className="bg-slate-950 text-white px-6 py-2 flex items-center justify-between text-xs border-b border-slate-800 shrink-0">
         <div className="flex items-center space-x-2.5">
-          <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-[10px] uppercase tracking-wider">
+          <span className="px-2.5 py-0.5 rounded-md bg-[#00A3E0]/15 text-[#00A3E0] border border-[#00A3E0]/30 font-bold text-[10px] uppercase tracking-wider">
             Architecture Mode
           </span>
           <span className="text-slate-300 font-medium">
@@ -249,9 +249,9 @@ export function ConnectorApp() {
         <div className="flex items-center space-x-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
           <button
             onClick={() => setViewMode('customer_portal')}
-            className={`flex items-center space-x-1.5 px-3.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
               viewMode === 'customer_portal'
-                ? 'bg-emerald-600 text-white shadow-xs'
+                ? 'bg-[#00A3E0] text-white shadow-xs'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -264,16 +264,16 @@ export function ConnectorApp() {
               setViewMode('admin_console')
               refreshOperationsData()
             }}
-            className={`flex items-center space-x-1.5 px-3.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
               viewMode === 'admin_console'
-                ? 'bg-rose-600 text-white shadow-xs'
+                ? 'bg-gradient-to-r from-[#00A3E0] to-[#5CBA46] text-white shadow-xs'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />
             <span>Support & Admin Console (Staff Only)</span>
             {openTicketCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-white text-rose-700 font-extrabold text-[10px]">
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-white text-slate-900 font-extrabold text-[10px]">
                 {openTicketCount}
               </span>
             )}
