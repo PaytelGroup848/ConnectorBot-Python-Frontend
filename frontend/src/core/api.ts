@@ -327,4 +327,18 @@ export const api = {
     if (!recents || recents.length === 0) return null
     return this.fetchConversation(recents[0].id)
   },
+
+  // 10. Administrator Console Authentication
+  async adminLogin(email: string, password: string): Promise<{ token: string; user: any }> {
+    const res = await fetch(`${BASE_URL}/auth/admin-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    const json = await res.json()
+    if (!res.ok || !json.success) {
+      throw new Error(json.error?.message || json.detail || 'Invalid administrator credentials')
+    }
+    return json.data
+  },
 }

@@ -5,12 +5,19 @@ import { Header } from './views/Header'
 import { AssistantView } from './views/AssistantView'
 import { QueueView } from './views/QueueView'
 import { TicketsView } from './views/TicketsView'
+import { AdminLoginView } from './views/AdminLoginView'
 import { Globe, ShieldAlert } from 'lucide-react'
 import type { ChatMessage, QueueItem, TallyStatus, TallyCompany } from './core/types'
 import { api } from './core/api'
 
 export function ConnectorApp() {
   const [viewMode, setViewMode] = useState<'customer_portal' | 'admin_console'>('customer_portal')
+  const [isAdminAuth, setIsAdminAuth] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return Boolean(window.localStorage.getItem('ctrlbooks_admin_token'))
+    }
+    return false
+  })
   const [currentTab, setCurrentTab] = useState<AdminTabId>('tickets')
   const APP_STORAGE_CONV_KEY = 'ctrlbooks_app_conversation_id'
   const APP_STORAGE_MSGS_KEY = 'ctrlbooks_app_cached_messages'
@@ -277,6 +284,18 @@ export function ConnectorApp() {
       {/* Mode 1: Customer Experience on ctrlbooks.com (ONLY Floating AI Widget) */}
       {viewMode === 'customer_portal' ? (
         <MockCtrlBooksPortal />
+      ) : !isAdminAuth ? (
+        /* Mode 2 Auth Gate: Protected Staff Login */
+        <AdminLoginView
+          onLoginSuccess={(adminData) => {
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem('ctrlbooks_admin_token', adminData.token)
+            }
+            setIsAdminAuth(true)
+            refreshOperationsData()
+          }}
+          onCancel={() => setViewMode('customer_portal')}
+        />
       ) : (
         /* Mode 2: Internal Staff Support & Admin Operations Console */
         <div className="flex flex-1 overflow-hidden">
@@ -296,6 +315,15 @@ export function ConnectorApp() {
               onToggleWidgetMode={() => setViewMode('customer_portal')}
               onRefresh={refreshOperationsData}
               isRefreshing={isRefreshing}
+              userName="CtrlBooks Admin"
+              userRole="Administrator"
+              onLogout={() => {
+                if (typeof window !== 'undefined') {
+                  window.localStorage.removeItem('ctrlbooks_admin_token')
+                }
+                setIsAdminAuth(false)
+                setViewMode('customer_portal')
+              }}
             />
 
             <main className="flex-1 overflow-y-auto">

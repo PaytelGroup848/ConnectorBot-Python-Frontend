@@ -1,4 +1,4 @@
-import { Search, Bell, Building2, ChevronDown, AlertTriangle, Minimize2, RefreshCw } from 'lucide-react'
+import { Search, Bell, Building2, ChevronDown, AlertTriangle, Minimize2, RefreshCw, LogOut } from 'lucide-react'
 import type { TallyStatus, TallyCompany } from '../core/types'
 
 interface HeaderProps {
@@ -11,6 +11,7 @@ interface HeaderProps {
   isRefreshing: boolean
   userName?: string
   userRole?: string
+  onLogout?: () => void
 }
 
 export const Header = ({
@@ -23,6 +24,7 @@ export const Header = ({
   isRefreshing,
   userName,
   userRole,
+  onLogout,
 }: HeaderProps) => {
   const effectiveName = userName || (selectedCompany ? selectedCompany.split(' ')[0] : 'Workspace')
   const effectiveRole = userRole || 'Owner'
@@ -115,7 +117,7 @@ export const Header = ({
           <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-2 right-2 ring-2 ring-white"></span>
         </button>
 
-        {/* User Profile */}
+        {/* User Profile & Logout */}
         <div className="flex items-center space-x-3 pl-2 border-l border-slate-200">
           <div className="w-8 h-8 rounded-full bg-linear-to-tr from-emerald-600 to-teal-500 text-white font-bold text-xs flex items-center justify-center shadow-xs">
             {initials}
@@ -124,6 +126,17 @@ export const Header = ({
             <span className="block text-xs font-semibold text-slate-900 leading-tight">{effectiveName}</span>
             <span className="block text-[10px] text-slate-400">{effectiveRole}</span>
           </div>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              title="Sign out of Admin Console"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-semibold transition cursor-pointer ml-1"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          )}
         </div>
       </div>
     </header>
