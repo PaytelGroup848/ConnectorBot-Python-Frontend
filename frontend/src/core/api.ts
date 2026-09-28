@@ -2,9 +2,20 @@ import type { ChatMessage, QueueItem, TallyStatus, DashboardMetrics, TallyCompan
 
 export const getBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
+    // 1. Check Vite Environment Variable (.env)
+    const envUrl = (import.meta as any).env?.VITE_API_URL
+    if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
+      if (window.location.port === '5173' && envUrl.includes('localhost:8001')) {
+        return '/api/v1'
+      }
+      return envUrl.replace(/\/+$/, '')
+    }
+
+    // 2. Global window configuration
     const globalCfg = (window as any).CtrlBooksAI || {}
     if (globalCfg.apiUrl) return globalCfg.apiUrl.replace(/\/+$/, '')
 
+    // 3. Embedded Script Tag Detection (widget.js)
     const script = document.querySelector('script[src*="widget.js"]') as HTMLScriptElement
     if (script) {
       if (script.dataset && script.dataset.apiUrl) {
@@ -18,8 +29,14 @@ export const getBaseUrl = (): string => {
       }
     }
 
+    // 4. In local development with Vite proxy
     if (window.location.port === '5173') {
       return '/api/v1'
+    }
+
+    // 5. Automatic resolution for Port 3000 -> Port 8001 on same host
+    if (window.location.port === '3000') {
+      return `${window.location.protocol}//${window.location.hostname}:8001/api/v1`
     }
   }
   return '/api/v1'
