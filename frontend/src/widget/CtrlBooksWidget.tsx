@@ -5,23 +5,22 @@ import {
   Send,
   Sparkles,
   Volume2,
-  Share2,
-  CheckCircle2,
   Minus,
   Maximize2,
   RefreshCw,
-  FileText,
   ExternalLink,
   PlusCircle,
   Ticket,
-  TrendingUp,
-  BookOpen,
 } from 'lucide-react'
 import type { ChatMessage, QueueItem, TallyStatus } from '../core/types'
 import { api } from '../core/api'
-import { downloadCorporateTicketPDF } from '../core/ticketPdf'
 import { renderFormattedMessage } from '../core/formatMessage'
 import { VoiceRecorder } from '../views/VoiceRecorder'
+import { InvoiceCard } from './components/InvoiceCard'
+import { CorporateTicketCard } from './components/CorporateTicketCard'
+import { SalesSummaryCard } from './components/SalesSummaryCard'
+import { AccountingReportCard } from './components/AccountingReportCard'
+import { TicketsListTab } from './components/TicketsListTab'
 
 export interface CtrlBooksWidgetProps {
   initialOpen?: boolean
@@ -606,238 +605,19 @@ export const CtrlBooksWidget = ({
           </div>
 
           {widgetTab === 'tickets' ? (
-            /* Dedicated My Tickets View */
-            <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/70">
-              {/* Filter Toolbar */}
-              <div className="p-2.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-[11px] font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setTicketFilter('ALL')}
-                    className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                      ticketFilter === 'ALL'
-                        ? 'bg-white text-slate-900 shadow-2xs'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    All ({ticketsList.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTicketFilter('ACTIVE')}
-                    className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                      ticketFilter === 'ACTIVE'
-                        ? 'bg-white text-emerald-800 shadow-2xs'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    Active ({ticketsList.filter((t) => t.status !== 'RESOLVED' && t.status !== 'CLOSED').length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTicketFilter('RESOLVED')}
-                    className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                      ticketFilter === 'RESOLVED'
-                        ? 'bg-white text-emerald-800 shadow-2xs'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    Resolved ({ticketsList.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length})
-                  </button>
-                </div>
-
-                <div className="flex items-center space-x-1">
-                  <button
-                    type="button"
-                    onClick={loadCustomerTickets}
-                    disabled={ticketsLoading}
-                    title="Refresh Tickets List"
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${ticketsLoading ? 'animate-spin text-emerald-600' : ''}`} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Tickets List */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                {ticketsLoading && ticketsList.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-48 space-y-2 text-slate-400">
-                    <RefreshCw className="w-5 h-5 animate-spin text-emerald-600" />
-                    <span className="text-xs">Loading tickets from server...</span>
-                  </div>
-                ) : filteredTickets.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-64 text-center p-6 space-y-3">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
-                      <Ticket className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800">
-                        {ticketFilter === 'ALL'
-                          ? 'No Support Tickets Found'
-                          : `No ${ticketFilter === 'ACTIVE' ? 'Active' : 'Resolved'} Tickets`}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 mt-1 max-w-xs leading-relaxed">
-                        Agar aapko Tally Sync ya billing me koi dikkat hai, toh aap seedha AI Assistant se bolkar ticket raise kar sakte hain.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWidgetTab('chat')
-                        handleSendMessage('Mujhe ek support ticket create karna hai.')
-                      }}
-                      className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5" />
-                      <span>Raise New Ticket</span>
-                    </button>
-                  </div>
-                ) : (
-                  filteredTickets.map((t) => {
-                    const isResolved = t.status === 'RESOLVED'
-                    const isClosed = t.status === 'CLOSED'
-                    const isInProgress = t.status === 'IN_PROGRESS'
-                    const isOpen = t.status === 'OPEN'
-
-                    return (
-                      <div
-                        key={t.ticket_id}
-                        className="bg-white rounded-2xl border border-slate-200 hover:border-emerald-300 p-3.5 shadow-2xs transition space-y-2.5"
-                      >
-                        {/* Top Bar */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center space-x-1.5">
-                              <span className="font-bold text-xs text-slate-900">
-                                🎫 #{t.ticket_id}
-                              </span>
-                              <span className="text-[9px] text-slate-400 font-medium">
-                                {new Date(t.created_at).toLocaleDateString('en-IN', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  year: 'numeric',
-                                })}
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                              {t.ai_summary?.department || 'L2 Connector Engineering'}
-                            </div>
-                          </div>
-
-                          {/* Status Badge */}
-                          <span
-                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase shrink-0 ${
-                              isResolved
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                : isInProgress
-                                ? 'bg-amber-50 text-amber-700 border-amber-300'
-                                : isClosed
-                                ? 'bg-slate-100 text-slate-700 border-slate-300'
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                            }`}
-                          >
-                            {isResolved && '✅ '}
-                            {isInProgress && '⏳ '}
-                            {isOpen && '📩 '}
-                            {isClosed && '🔒 '}
-                            {t.status}
-                          </span>
-                        </div>
-
-                        {/* Subject & Description */}
-                        <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100 space-y-1">
-                          <div className="text-xs font-semibold text-slate-800 leading-snug">
-                            {t.subject}
-                          </div>
-                          {t.description && t.description !== t.subject && (
-                            <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
-                              {t.description}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-200/60 font-medium">
-                            <span>Priority: <strong className="text-slate-700">{t.priority}</strong></span>
-                            <span>SLA: <strong className="text-emerald-700">{t.ai_summary?.resolution_sla || 'Within 4 Hours'}</strong></span>
-                          </div>
-                        </div>
-
-                        {/* Engineer Resolution Note */}
-                        {t.engineer_reply && (
-                          <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-2.5 space-y-1">
-                            <div className="text-[10px] font-bold text-emerald-800 flex items-center space-x-1">
-                              <span>💬 Support Engineer Resolution Note:</span>
-                            </div>
-                            <p className="text-[11px] text-slate-700 italic leading-relaxed">
-                              "{t.engineer_reply}"
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Actions Footer */}
-                        <div className="flex items-center justify-between gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setWidgetTab('chat')
-                              handleSendMessage(`Ticket #${t.ticket_id} solve hua kya? Status aur latest update batao.`)
-                            }}
-                            className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10.5px] font-semibold flex items-center justify-center space-x-1 transition cursor-pointer"
-                          >
-                            <Sparkles className="w-3 h-3 text-emerald-600" />
-                            <span>Ask AI for Update</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              downloadCorporateTicketPDF({
-                                ticket_id: t.ticket_id,
-                                subject: t.subject,
-                                description: t.description,
-                                status: t.status,
-                                priority: t.priority,
-                                company: t.ai_summary?.company || resolvedCompany,
-                                user_id: t.user_id,
-                                department: t.ai_summary?.department || 'L2 Connector Engineering',
-                                assigned_team: t.ai_summary?.assigned_team || 'Tally Core Team',
-                                sla_tier: t.ai_summary?.sla_tier || 'P3 - Standard',
-                                response_sla: t.ai_summary?.response_sla || 'Within 1 Hour',
-                                resolution_sla: t.ai_summary?.resolution_sla || 'Within 4 Hours',
-                                created_at: t.created_at,
-                                diagnostics: t.ai_summary?.diagnostics || {
-                                  tally_port: activePort || 9000,
-                                  tally_connector: tallyStatus?.is_online ? 'ONLINE' : 'STANDBY',
-                                },
-                                engineer_reply: t.engineer_reply,
-                              })
-                            }}
-                            className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10.5px] font-bold flex items-center space-x-1 transition cursor-pointer shadow-2xs"
-                          >
-                            <FileText className="w-3 h-3" />
-                            <span>PDF</span>
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-
-              {/* Tab Footer Note */}
-              <div className="p-2.5 bg-white border-t border-slate-200 flex items-center justify-between text-[9.5px] text-slate-400">
-                <span>Auto-synced with L2 Enterprise Support Queue</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWidgetTab('chat')
-                    handleSendMessage('Mujhe naya support ticket raise karna hai.')
-                  }}
-                  className="text-emerald-700 hover:text-emerald-800 font-bold hover:underline cursor-pointer"
-                >
-                  + Raise New Ticket
-                </button>
-              </div>
-            </div>
+            <TicketsListTab
+              ticketsList={ticketsList}
+              filteredTickets={filteredTickets}
+              ticketFilter={ticketFilter}
+              setTicketFilter={setTicketFilter}
+              ticketsLoading={ticketsLoading}
+              loadCustomerTickets={loadCustomerTickets}
+              setWidgetTab={setWidgetTab}
+              handleSendMessage={handleSendMessage}
+              resolvedCompany={resolvedCompany}
+              activePort={activePort}
+              tallyStatus={tallyStatus}
+            />
           ) : (
             /* Live Assistant Chat View */
             <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/70">
@@ -935,404 +715,26 @@ export const CtrlBooksWidget = ({
 
                         {/* Interactive Invoice Card with Tally 4-Step Stepper */}
                         {voucherData && (
-                          <div className="bg-white rounded-2xl border border-emerald-300 p-4 shadow-sm space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-xs text-slate-900 flex items-center space-x-1.5">
-                                <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>Invoice {voucherData.voucher_number}</span>
-                              </span>
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
-                                {voucherData.status ? voucherData.status.replace(/_/g, ' ') : 'QUEUED'}
-                              </span>
-                            </div>
-
-                            <div className="text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
-                              <div className="flex justify-between">
-                                <span className="text-slate-400">Party</span>
-                                <span className="font-semibold text-slate-800">
-                                  {voucherData.payload?.payload?.party_ledger}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-400">Total (incl. GST)</span>
-                                <span className="font-bold text-emerald-700 font-mono">
-                                  ₹{voucherData.payload?.payload?.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* 4-Step Stepper */}
-                            <div className="text-[10px]">
-                              <div className="flex items-center justify-between text-slate-400">
-                                <span className="text-emerald-700 font-semibold flex items-center space-x-0.5">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  <span>AI Created</span>
-                                </span>
-                                <span>➔</span>
-                                <span className="text-emerald-700 font-semibold flex items-center space-x-0.5">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  <span>GST Balanced</span>
-                                </span>
-                                <span>➔</span>
-                                <span className="text-emerald-700 font-semibold">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping mr-1"></span>
-                                  <span>Queued</span>
-                                </span>
-                                <span>➔</span>
-                                <span>Tally Synced</span>
-                              </div>
-                            </div>
-
-                            {/* WhatsApp Share Button */}
-                            <div className="pt-1 flex items-center space-x-2">
-                              <button
-                                onClick={() => handleWhatsAppShare(voucherData)}
-                                className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold flex items-center justify-center space-x-1 shadow-xs transition"
-                              >
-                                <Share2 className="w-3 h-3" />
-                                <span>WhatsApp Invoice</span>
-                              </button>
-                            </div>
-                          </div>
+                          <InvoiceCard voucherData={voucherData} onWhatsAppShare={handleWhatsAppShare} />
                         )}
 
                         {/* Interactive Corporate Support Ticket Card */}
                         {ticketData && (
-                          <div className="bg-white rounded-2xl border border-emerald-300 p-3.5 shadow-sm space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <span className="font-bold text-xs text-slate-900 block">
-                                  🎫 #{ticketData.ticket_id}
-                                </span>
-                                <span className="text-[10px] text-slate-500 font-medium">
-                                  {ticketData.department || 'L2 Connector Engineering'}
-                                </span>
-                              </div>
-                              <span
-                                className={`text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase ${
-                                  ticketData.status === 'RESOLVED'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                    : ticketData.status === 'IN_PROGRESS'
-                                    ? 'bg-amber-50 text-amber-700 border-amber-300'
-                                    : ticketData.status === 'CLOSED'
-                                    ? 'bg-slate-100 text-slate-700 border-slate-300'
-                                    : 'bg-rose-50 text-rose-700 border-rose-200'
-                                }`}
-                              >
-                                {ticketData.status === 'RESOLVED' && '✅ '}
-                                {ticketData.status === 'IN_PROGRESS' && '⏳ '}
-                                {ticketData.status === 'CLOSED' && '🔒 '}
-                                {ticketData.sla_tier || ticketData.priority} • {ticketData.status}
-                              </span>
-                            </div>
-                            <div className="text-[11px] bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-slate-800 font-semibold space-y-1">
-                              <div>{ticketData.subject}</div>
-                              <div className="flex justify-between text-[10px] text-emerald-700 pt-1 border-t border-slate-200/70">
-                                <span>Response SLA: {ticketData.response_sla || '1 Hour'}</span>
-                                <span>Target: {ticketData.resolution_sla || '4 Hours'}</span>
-                              </div>
-                            </div>
-                            {ticketData.engineer_reply && (
-                              <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-2.5 space-y-1">
-                                <div className="text-[10px] font-bold text-emerald-800 flex items-center space-x-1">
-                                  <span>💬 Engineer Resolution Note:</span>
-                                </div>
-                                <p className="text-[11px] text-slate-700 leading-relaxed italic">
-                                  "{ticketData.engineer_reply}"
-                                </p>
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between text-[9.5px] text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 font-medium">
-                              <span>✅ Tally Port {ticketData.diagnostics?.tally_port || activePort || 'Auto-Detect'} Telemetry Attached</span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  downloadCorporateTicketPDF({
-                                    ticket_id: ticketData.ticket_id,
-                                    subject: ticketData.subject,
-                                    description: ticketData.description,
-                                    status: ticketData.status,
-                                    priority: ticketData.priority,
-                                    company: ticketData.company || resolvedCompany,
-                                    user_id: ticketData.user_id,
-                                    department: ticketData.department,
-                                    sla_tier: ticketData.sla_tier,
-                                    response_sla: ticketData.response_sla,
-                                    resolution_sla: ticketData.resolution_sla,
-                                    created_at: ticketData.created_at,
-                                    diagnostics: ticketData.diagnostics,
-                                    engineer_reply: ticketData.engineer_reply,
-                                  })
-                                }
-                                className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition cursor-pointer"
-                              >
-                                📥 PDF Receipt
-                              </button>
-                            </div>
-                          </div>
+                          <CorporateTicketCard
+                            ticketData={ticketData}
+                            resolvedCompany={resolvedCompany}
+                            activePort={activePort}
+                          />
                         )}
 
                         {/* Interactive Financial Summary & Analytics Card (Sales, Receipts, Orders, Credit Notes) */}
                         {analyticsData && (
-                          <div className="bg-white rounded-2xl border border-emerald-300 p-3.5 shadow-sm space-y-3">
-                            {/* Card Header */}
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200">
-                                  <TrendingUp className="w-4 h-4" />
-                                </div>
-                                <div>
-                                  <span className="font-bold text-xs text-slate-900 block">
-                                    {analyticsData.module_label || 'Sales'} Report
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 font-medium">
-                                    {analyticsData.period_label || 'Today'}
-                                  </span>
-                                </div>
-                              </div>
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
-                                {analyticsData.total_count} {analyticsData.module_label || 'Invoices'}
-                              </span>
-                            </div>
-
-                            {/* Big Stat Box */}
-                            <div className="bg-linear-to-br from-emerald-50 to-teal-50/50 p-3 rounded-xl border border-emerald-100 flex items-baseline justify-between">
-                              <div>
-                                <span className="text-[10px] font-semibold text-emerald-800 uppercase tracking-wider block">
-                                  Total {analyticsData.module_label || 'Sales'} Value
-                                </span>
-                                <div className="text-xl font-extrabold text-emerald-900 font-mono mt-0.5">
-                                  ₹{analyticsData.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </div>
-                              </div>
-                              <div className="text-[10px] text-emerald-700 font-medium text-right">
-                                <span>{analyticsData.company_name}</span>
-                              </div>
-                            </div>
-
-                            {/* Top Transactions List */}
-                            {analyticsData.items && analyticsData.items.length > 0 && (
-                              <div className="space-y-1.5 pt-0.5">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                                  Transactions ({analyticsData.items.length})
-                                </span>
-                                <div className="divide-y divide-slate-100 max-h-36 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/60 p-1">
-                                  {analyticsData.items.slice(0, 4).map((itm: any, idx: number) => (
-                                    <div key={idx} className="flex items-center justify-between py-1.5 px-2 text-[11px]">
-                                      <div>
-                                        <span className="font-semibold text-slate-800 block leading-tight">
-                                          {itm.party_ledger}
-                                        </span>
-                                        <span className="text-[9.5px] text-slate-400 font-mono">
-                                          #{itm.voucher_number} • {itm.date}
-                                        </span>
-                                      </div>
-                                      <span className="font-bold text-slate-900 font-mono">
-                                        ₹{itm.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* WhatsApp Share Button */}
-                            <div className="pt-1 flex items-center space-x-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const mod = analyticsData.module_label || 'Sales'
-                                  const per = analyticsData.period_label || 'Today'
-                                  const tot = analyticsData.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0'
-                                  const cnt = analyticsData.total_count || 0
-                                  const comp = analyticsData.company_name || 'CtrlBooks'
-                                  const text = `📊 *${comp} - ${per} ${mod} Report*\n• Total Amount: ₹${tot}\n• Total Entries: ${cnt}\n- Generated via CtrlBooks AI.`
-                                  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-                                }}
-                                className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold flex items-center justify-center space-x-1 shadow-2xs transition cursor-pointer"
-                              >
-                                <Share2 className="w-3 h-3" />
-                                <span>WhatsApp Summary</span>
-                              </button>
-                            </div>
-                          </div>
+                          <SalesSummaryCard analyticsData={analyticsData} />
                         )}
 
                         {/* Interactive Official Accounting Report Card (Day Book, Trial Balance, P&L, Balance Sheet, Voucher Lines) */}
                         {reportData && (
-                          <div className="bg-white rounded-2xl border border-emerald-300 p-3.5 shadow-sm space-y-3">
-                            {/* Card Header */}
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-7 h-7 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center border border-teal-200">
-                                  <BookOpen className="w-4 h-4" />
-                                </div>
-                                <div>
-                                  <span className="font-bold text-xs text-slate-900 block">
-                                    {reportData.report_title || 'Executive Accounting Report'}
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 font-medium">
-                                    {reportData.period_label || reportData.company_name || 'Today'}
-                                  </span>
-                                </div>
-                              </div>
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
-                                {reportData.total_count} {reportData.report_type === 'day-book' ? 'Entries' : 'Records'}
-                              </span>
-                            </div>
-
-                            {/* Metric Tiles based on report_type */}
-                            {reportData.report_type === 'day-book' && (
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
-                                  <span className="text-[9.5px] font-semibold text-emerald-800 uppercase block">Total Credit (In)</span>
-                                  <div className="text-sm font-extrabold text-emerald-900 font-mono mt-0.5">
-                                    ₹{reportData.total_credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                                <div className="bg-rose-50/70 p-2.5 rounded-xl border border-rose-200">
-                                  <span className="text-[9.5px] font-semibold text-rose-800 uppercase block">Total Debit (Out)</span>
-                                  <div className="text-sm font-extrabold text-rose-900 font-mono mt-0.5">
-                                    ₹{reportData.total_debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {reportData.report_type === 'trial-balance' && (
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                                  <span className="text-[9.5px] font-semibold text-slate-600 uppercase block">Total Debit</span>
-                                  <div className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">
-                                    ₹{reportData.total_debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                                  <span className="text-[9.5px] font-semibold text-slate-600 uppercase block">Total Credit</span>
-                                  <div className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">
-                                    ₹{reportData.total_credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {reportData.report_type === 'pnl' && (
-                              <div className="grid grid-cols-3 gap-1.5">
-                                <div className="bg-emerald-50/60 p-2 rounded-xl border border-emerald-100">
-                                  <span className="text-[9px] font-semibold text-emerald-800 block">Revenue</span>
-                                  <div className="text-xs font-bold text-emerald-900 font-mono mt-0.5">
-                                    ₹{reportData.total_income?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                                <div className="bg-amber-50/60 p-2 rounded-xl border border-amber-100">
-                                  <span className="text-[9px] font-semibold text-amber-800 block">Expenses</span>
-                                  <div className="text-xs font-bold text-amber-900 font-mono mt-0.5">
-                                    ₹{reportData.total_expense?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                                <div className={`p-2 rounded-xl border ${reportData.is_profit ? 'bg-teal-50/80 border-teal-200' : 'bg-rose-50/80 border-rose-200'}`}>
-                                  <span className={`text-[9px] font-semibold block ${reportData.is_profit ? 'text-teal-800' : 'text-rose-800'}`}>
-                                    {reportData.is_profit ? 'Net Profit' : 'Net Loss'}
-                                  </span>
-                                  <div className={`text-xs font-bold font-mono mt-0.5 ${reportData.is_profit ? 'text-teal-900' : 'text-rose-900'}`}>
-                                    ₹{Math.abs(reportData.net_profit || 0)?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {reportData.report_type === 'balance-sheet' && (
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-blue-50/70 p-2.5 rounded-xl border border-blue-200">
-                                  <span className="text-[9.5px] font-semibold text-blue-800 uppercase block">Total Assets</span>
-                                  <div className="text-sm font-extrabold text-blue-900 font-mono mt-0.5">
-                                    ₹{reportData.total_assets?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                                <div className="bg-purple-50/70 p-2.5 rounded-xl border border-purple-200">
-                                  <span className="text-[9.5px] font-semibold text-purple-800 uppercase block">Total Liabilities</span>
-                                  <div className="text-sm font-extrabold text-purple-900 font-mono mt-0.5">
-                                    ₹{reportData.total_liabilities?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {reportData.report_type === 'voucher-lines' && (
-                              <div className="bg-linear-to-br from-teal-50 to-emerald-50/50 p-2.5 rounded-xl border border-teal-100 flex items-baseline justify-between">
-                                <div>
-                                  <span className="text-[10px] font-semibold text-teal-800 uppercase tracking-wider block">
-                                    Voucher #{reportData.voucher_id} Total
-                                  </span>
-                                  <div className="text-base font-extrabold text-teal-900 font-mono mt-0.5">
-                                    ₹{reportData.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </div>
-                                <div className="text-[10px] text-teal-700 font-medium text-right">
-                                  <span>{reportData.total_count} items</span>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Breakdown List of Rows (Top 4 rows) */}
-                            {reportData.rows && reportData.rows.length > 0 && (
-                              <div className="space-y-1.5 pt-0.5">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                                  {reportData.report_type === 'day-book' ? 'Day Book Transactions' : reportData.report_type === 'voucher-lines' ? 'Itemized Lines' : 'Ledger Balances'} ({reportData.rows.length})
-                                </span>
-                                <div className="divide-y divide-slate-100 max-h-36 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/60 p-1">
-                                  {reportData.rows.slice(0, 4).map((row: any, idx: number) => (
-                                    <div key={idx} className="flex items-center justify-between py-1.5 px-2 text-[11px]">
-                                      <div>
-                                        <span className="font-semibold text-slate-800 block leading-tight">
-                                          {row.party_ledger || row.ledger_name || row.particulars || row.item_name || 'Entry'}
-                                        </span>
-                                        <span className="text-[9.5px] text-slate-400 font-mono">
-                                          {row.voucher_type ? `${row.voucher_type} #${row.voucher_number || ''}` : row.group || row.ledger_type || (row.unit ? `${row.quantity} ${row.unit} @ ₹${row.rate}` : '')}
-                                        </span>
-                                      </div>
-                                      <div className="text-right">
-                                        <span className="font-bold text-slate-900 font-mono block">
-                                          ₹{(row.amount || row.debit || row.credit || row.closing_balance || 0)?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                        </span>
-                                        {row.debit > 0 && <span className="text-[9px] text-rose-600 font-bold">Dr</span>}
-                                        {row.credit > 0 && <span className="text-[9px] text-emerald-600 font-bold">Cr</span>}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* WhatsApp Share Button */}
-                            <div className="pt-1 flex items-center space-x-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const title = reportData.report_title || 'Accounting Report'
-                                  const comp = reportData.company_name || 'CtrlBooks'
-                                  const per = reportData.period_label || 'Today'
-                                  const cnt = reportData.total_count || 0
-                                  let details = ''
-                                  if (reportData.report_type === 'day-book') {
-                                    details = `\n• Total Credit (In): ₹${reportData.total_credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Total Debit (Out): ₹${reportData.total_debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Net Flow: ₹${reportData.net_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                                  } else if (reportData.report_type === 'trial-balance') {
-                                    details = `\n• Total Debit: ₹${reportData.total_debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Total Credit: ₹${reportData.total_credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                                  } else if (reportData.report_type === 'pnl') {
-                                    details = `\n• Revenue: ₹${reportData.total_income?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Expenses: ₹${reportData.total_expense?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Net Profit: ₹${reportData.net_profit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                                  } else if (reportData.report_type === 'balance-sheet') {
-                                    details = `\n• Assets: ₹${reportData.total_assets?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Liabilities: ₹${reportData.total_liabilities?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                                  }
-                                  const text = `📊 *${comp} - ${title} (${per})*\n• Total Entries: ${cnt}${details}\n- Generated via CtrlBooks AI.`
-                                  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-                                }}
-                                className="flex-1 py-1.5 px-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-semibold flex items-center justify-center space-x-1 shadow-2xs transition cursor-pointer"
-                              >
-                                <Share2 className="w-3 h-3" />
-                                <span>WhatsApp Report</span>
-                              </button>
-                            </div>
-                          </div>
+                          <AccountingReportCard reportData={reportData} />
                         )}
 
                         <span className={`text-[9px] text-slate-400 px-1 flex items-center gap-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
