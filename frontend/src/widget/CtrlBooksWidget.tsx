@@ -22,6 +22,8 @@ import { SalesSummaryCard } from './components/SalesSummaryCard'
 import { AccountingReportCard } from './components/AccountingReportCard'
 import { CashBankCard } from './components/CashBankCard'
 import { PartyCard } from './components/PartyCard'
+import { ConnectorStatusCard } from './components/ConnectorStatusCard'
+import { SubscriptionCard } from './components/SubscriptionCard'
 import { TicketsListTab } from './components/TicketsListTab'
 
 export interface CtrlBooksWidgetProps {
@@ -667,6 +669,10 @@ export const CtrlBooksWidget = ({
                   const cashBankData = cashBankTool?.result as any
                   const partyTool = msg.tool_calls?.find((t) => t.tool === 'get_parties_command')
                   const partyData = partyTool?.result as any
+                  const connectorTool = msg.tool_calls?.find((t) => t.tool === 'get_connector_status_command')
+                  const connectorData = connectorTool?.result as any
+                  const subscriptionTool = msg.tool_calls?.find((t) => t.tool === 'get_subscription_status_command')
+                  const subscriptionData = subscriptionTool?.result as any
 
                   return (
                     <div
@@ -751,6 +757,16 @@ export const CtrlBooksWidget = ({
                         {/* Interactive Party Ledger & Directory Card */}
                         {partyData && (
                           <PartyCard partyData={partyData} />
+                        )}
+
+                        {/* Interactive Connector Status Card */}
+                        {connectorData && (
+                          <ConnectorStatusCard statusData={connectorData} />
+                        )}
+
+                        {/* Interactive Subscription & Plan Card */}
+                        {subscriptionData && (
+                          <SubscriptionCard subData={subscriptionData} />
                         )}
 
                         <span className={`text-[9px] text-slate-400 px-1 flex items-center gap-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
