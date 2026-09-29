@@ -14,6 +14,7 @@ import {
   ExternalLink,
   PlusCircle,
   Ticket,
+  TrendingUp,
 } from 'lucide-react'
 import type { ChatMessage, QueueItem, TallyStatus } from '../core/types'
 import { api } from '../core/api'
@@ -875,6 +876,8 @@ export const CtrlBooksWidget = ({
                     (t) => t.tool === 'create_support_ticket' || t.tool === 'check_support_ticket_status'
                   )
                   const ticketData = ticketTool?.result as any
+                  const analyticsTool = msg.tool_calls?.find((t) => t.tool === 'get_sales_analytics_command')
+                  const analyticsData = analyticsTool?.result as any
 
                   return (
                     <div
@@ -1061,6 +1064,92 @@ export const CtrlBooksWidget = ({
                                 className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition cursor-pointer"
                               >
                                 📥 PDF Receipt
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Interactive Financial Summary & Analytics Card (Sales, Receipts, Orders, Credit Notes) */}
+                        {analyticsData && (
+                          <div className="bg-white rounded-2xl border border-emerald-300 p-3.5 shadow-sm space-y-3">
+                            {/* Card Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200">
+                                  <TrendingUp className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <span className="font-bold text-xs text-slate-900 block">
+                                    {analyticsData.module_label || 'Sales'} Report
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-medium">
+                                    {analyticsData.period_label || 'Today'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                                {analyticsData.total_count} {analyticsData.module_label || 'Invoices'}
+                              </span>
+                            </div>
+
+                            {/* Big Stat Box */}
+                            <div className="bg-linear-to-br from-emerald-50 to-teal-50/50 p-3 rounded-xl border border-emerald-100 flex items-baseline justify-between">
+                              <div>
+                                <span className="text-[10px] font-semibold text-emerald-800 uppercase tracking-wider block">
+                                  Total {analyticsData.module_label || 'Sales'} Value
+                                </span>
+                                <div className="text-xl font-extrabold text-emerald-900 font-mono mt-0.5">
+                                  ₹{analyticsData.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </div>
+                              </div>
+                              <div className="text-[10px] text-emerald-700 font-medium text-right">
+                                <span>{analyticsData.company_name}</span>
+                              </div>
+                            </div>
+
+                            {/* Top Transactions List */}
+                            {analyticsData.items && analyticsData.items.length > 0 && (
+                              <div className="space-y-1.5 pt-0.5">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                                  Transactions ({analyticsData.items.length})
+                                </span>
+                                <div className="divide-y divide-slate-100 max-h-36 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/60 p-1">
+                                  {analyticsData.items.slice(0, 4).map((itm: any, idx: number) => (
+                                    <div key={idx} className="flex items-center justify-between py-1.5 px-2 text-[11px]">
+                                      <div>
+                                        <span className="font-semibold text-slate-800 block leading-tight">
+                                          {itm.party_ledger}
+                                        </span>
+                                        <span className="text-[9.5px] text-slate-400 font-mono">
+                                          #{itm.voucher_number} • {itm.date}
+                                        </span>
+                                      </div>
+                                      <span className="font-bold text-slate-900 font-mono">
+                                        ₹{itm.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* WhatsApp Share Button */}
+                            <div className="pt-1 flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const mod = analyticsData.module_label || 'Sales'
+                                  const per = analyticsData.period_label || 'Today'
+                                  const tot = analyticsData.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0'
+                                  const cnt = analyticsData.total_count || 0
+                                  const comp = analyticsData.company_name || 'CtrlBooks'
+                                  const text = `📊 *${comp} - ${per} ${mod} Report*\n• Total Amount: ₹${tot}\n• Total Entries: ${cnt}\n- Generated via CtrlBooks AI.`
+                                  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+                                }}
+                                className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold flex items-center justify-center space-x-1 shadow-2xs transition cursor-pointer"
+                              >
+                                <Share2 className="w-3 h-3" />
+                                <span>WhatsApp Summary</span>
                               </button>
                             </div>
                           </div>
