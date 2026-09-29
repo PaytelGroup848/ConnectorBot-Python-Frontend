@@ -20,6 +20,7 @@ import { InvoiceCard } from './components/InvoiceCard'
 import { CorporateTicketCard } from './components/CorporateTicketCard'
 import { SalesSummaryCard } from './components/SalesSummaryCard'
 import { AccountingReportCard } from './components/AccountingReportCard'
+import { CashBankCard } from './components/CashBankCard'
 import { TicketsListTab } from './components/TicketsListTab'
 
 export interface CtrlBooksWidgetProps {
@@ -152,9 +153,9 @@ export const CtrlBooksWidget = ({
 
   const quickPills = [
     { label: '📊 Aaj Ka Reports (Day Book)', prompt: 'Mere aaj ka reports do' },
+    { label: '💼 Cash & Bank Balance', prompt: 'Cash aur bank dono balance dikhao' },
     { label: 'Create Sales Invoice', prompt: 'Naya sales voucher create karo' },
     { label: 'Check Tally Sync', prompt: 'Tally Prime live port aur sync status check karo' },
-    { label: 'Pending Invoices', prompt: 'Kitne outstanding invoices pending hain?' },
   ]
 
   const scrollToBottom = () => {
@@ -661,6 +662,8 @@ export const CtrlBooksWidget = ({
                   const analyticsData = analyticsTool?.result as any
                   const reportTool = msg.tool_calls?.find((t) => t.tool === 'get_accounting_report_command')
                   const reportData = reportTool?.result as any
+                  const cashBankTool = msg.tool_calls?.find((t) => t.tool === 'get_cash_bank_command')
+                  const cashBankData = cashBankTool?.result as any
 
                   return (
                     <div
@@ -735,6 +738,11 @@ export const CtrlBooksWidget = ({
                         {/* Interactive Official Accounting Report Card (Day Book, Trial Balance, P&L, Balance Sheet, Voucher Lines) */}
                         {reportData && (
                           <AccountingReportCard reportData={reportData} />
+                        )}
+
+                        {/* Interactive Cash & Bank Module Card */}
+                        {cashBankData && (
+                          <CashBankCard cashBankData={cashBankData} />
                         )}
 
                         <span className={`text-[9px] text-slate-400 px-1 flex items-center gap-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
