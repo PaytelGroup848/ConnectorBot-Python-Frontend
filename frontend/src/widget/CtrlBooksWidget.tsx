@@ -21,6 +21,7 @@ import { CorporateTicketCard } from './components/CorporateTicketCard'
 import { SalesSummaryCard } from './components/SalesSummaryCard'
 import { AccountingReportCard } from './components/AccountingReportCard'
 import { CashBankCard } from './components/CashBankCard'
+import { PartyCard } from './components/PartyCard'
 import { TicketsListTab } from './components/TicketsListTab'
 
 export interface CtrlBooksWidgetProps {
@@ -154,8 +155,8 @@ export const CtrlBooksWidget = ({
   const quickPills = [
     { label: '📊 Aaj Ka Reports (Day Book)', prompt: 'Mere aaj ka reports do' },
     { label: '💼 Cash & Bank Balance', prompt: 'Cash aur bank dono balance dikhao' },
+    { label: '👥 Party Balances', prompt: 'Meri parties ka balance dikhao' },
     { label: 'Create Sales Invoice', prompt: 'Naya sales voucher create karo' },
-    { label: 'Check Tally Sync', prompt: 'Tally Prime live port aur sync status check karo' },
   ]
 
   const scrollToBottom = () => {
@@ -664,6 +665,8 @@ export const CtrlBooksWidget = ({
                   const reportData = reportTool?.result as any
                   const cashBankTool = msg.tool_calls?.find((t) => t.tool === 'get_cash_bank_command')
                   const cashBankData = cashBankTool?.result as any
+                  const partyTool = msg.tool_calls?.find((t) => t.tool === 'get_parties_command')
+                  const partyData = partyTool?.result as any
 
                   return (
                     <div
@@ -743,6 +746,11 @@ export const CtrlBooksWidget = ({
                         {/* Interactive Cash & Bank Module Card */}
                         {cashBankData && (
                           <CashBankCard cashBankData={cashBankData} />
+                        )}
+
+                        {/* Interactive Party Ledger & Directory Card */}
+                        {partyData && (
+                          <PartyCard partyData={partyData} />
                         )}
 
                         <span className={`text-[9px] text-slate-400 px-1 flex items-center gap-1.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
