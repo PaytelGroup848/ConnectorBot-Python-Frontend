@@ -15,6 +15,7 @@ import {
   PlusCircle,
   Ticket,
   TrendingUp,
+  BookOpen,
 } from 'lucide-react'
 import type { ChatMessage, QueueItem, TallyStatus } from '../core/types'
 import { api } from '../core/api'
@@ -151,9 +152,9 @@ export const CtrlBooksWidget = ({
   })
 
   const quickPills = [
+    { label: '📊 Aaj Ka Reports (Day Book)', prompt: 'Mere aaj ka reports do' },
     { label: 'Create Sales Invoice', prompt: 'Naya sales voucher create karo' },
     { label: 'Check Tally Sync', prompt: 'Tally Prime live port aur sync status check karo' },
-    { label: 'GST Query', prompt: 'GSTR-1 aur GSTR-3B filing dates kya hain?' },
     { label: 'Pending Invoices', prompt: 'Kitne outstanding invoices pending hain?' },
   ]
 
@@ -878,6 +879,8 @@ export const CtrlBooksWidget = ({
                   const ticketData = ticketTool?.result as any
                   const analyticsTool = msg.tool_calls?.find((t) => t.tool === 'get_sales_analytics_command')
                   const analyticsData = analyticsTool?.result as any
+                  const reportTool = msg.tool_calls?.find((t) => t.tool === 'get_accounting_report_command')
+                  const reportData = reportTool?.result as any
 
                   return (
                     <div
@@ -1150,6 +1153,183 @@ export const CtrlBooksWidget = ({
                               >
                                 <Share2 className="w-3 h-3" />
                                 <span>WhatsApp Summary</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Interactive Official Accounting Report Card (Day Book, Trial Balance, P&L, Balance Sheet, Voucher Lines) */}
+                        {reportData && (
+                          <div className="bg-white rounded-2xl border border-emerald-300 p-3.5 shadow-sm space-y-3">
+                            {/* Card Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-7 h-7 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center border border-teal-200">
+                                  <BookOpen className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <span className="font-bold text-xs text-slate-900 block">
+                                    {reportData.report_title || 'Executive Accounting Report'}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-medium">
+                                    {reportData.period_label || reportData.company_name || 'Today'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                                {reportData.total_count} {reportData.report_type === 'day-book' ? 'Entries' : 'Records'}
+                              </span>
+                            </div>
+
+                            {/* Metric Tiles based on report_type */}
+                            {reportData.report_type === 'day-book' && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
+                                  <span className="text-[9.5px] font-semibold text-emerald-800 uppercase block">Total Credit (In)</span>
+                                  <div className="text-sm font-extrabold text-emerald-900 font-mono mt-0.5">
+                                    ₹{reportData.total_credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                                <div className="bg-rose-50/70 p-2.5 rounded-xl border border-rose-200">
+                                  <span className="text-[9.5px] font-semibold text-rose-800 uppercase block">Total Debit (Out)</span>
+                                  <div className="text-sm font-extrabold text-rose-900 font-mono mt-0.5">
+                                    ₹{reportData.total_debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {reportData.report_type === 'trial-balance' && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                  <span className="text-[9.5px] font-semibold text-slate-600 uppercase block">Total Debit</span>
+                                  <div className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">
+                                    ₹{reportData.total_debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                  <span className="text-[9.5px] font-semibold text-slate-600 uppercase block">Total Credit</span>
+                                  <div className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">
+                                    ₹{reportData.total_credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {reportData.report_type === 'pnl' && (
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <div className="bg-emerald-50/60 p-2 rounded-xl border border-emerald-100">
+                                  <span className="text-[9px] font-semibold text-emerald-800 block">Revenue</span>
+                                  <div className="text-xs font-bold text-emerald-900 font-mono mt-0.5">
+                                    ₹{reportData.total_income?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                                <div className="bg-amber-50/60 p-2 rounded-xl border border-amber-100">
+                                  <span className="text-[9px] font-semibold text-amber-800 block">Expenses</span>
+                                  <div className="text-xs font-bold text-amber-900 font-mono mt-0.5">
+                                    ₹{reportData.total_expense?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                                <div className={`p-2 rounded-xl border ${reportData.is_profit ? 'bg-teal-50/80 border-teal-200' : 'bg-rose-50/80 border-rose-200'}`}>
+                                  <span className={`text-[9px] font-semibold block ${reportData.is_profit ? 'text-teal-800' : 'text-rose-800'}`}>
+                                    {reportData.is_profit ? 'Net Profit' : 'Net Loss'}
+                                  </span>
+                                  <div className={`text-xs font-bold font-mono mt-0.5 ${reportData.is_profit ? 'text-teal-900' : 'text-rose-900'}`}>
+                                    ₹{Math.abs(reportData.net_profit || 0)?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {reportData.report_type === 'balance-sheet' && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-blue-50/70 p-2.5 rounded-xl border border-blue-200">
+                                  <span className="text-[9.5px] font-semibold text-blue-800 uppercase block">Total Assets</span>
+                                  <div className="text-sm font-extrabold text-blue-900 font-mono mt-0.5">
+                                    ₹{reportData.total_assets?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                                <div className="bg-purple-50/70 p-2.5 rounded-xl border border-purple-200">
+                                  <span className="text-[9.5px] font-semibold text-purple-800 uppercase block">Total Liabilities</span>
+                                  <div className="text-sm font-extrabold text-purple-900 font-mono mt-0.5">
+                                    ₹{reportData.total_liabilities?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {reportData.report_type === 'voucher-lines' && (
+                              <div className="bg-linear-to-br from-teal-50 to-emerald-50/50 p-2.5 rounded-xl border border-teal-100 flex items-baseline justify-between">
+                                <div>
+                                  <span className="text-[10px] font-semibold text-teal-800 uppercase tracking-wider block">
+                                    Voucher #{reportData.voucher_id} Total
+                                  </span>
+                                  <div className="text-base font-extrabold text-teal-900 font-mono mt-0.5">
+                                    ₹{reportData.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                                <div className="text-[10px] text-teal-700 font-medium text-right">
+                                  <span>{reportData.total_count} items</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Breakdown List of Rows (Top 4 rows) */}
+                            {reportData.rows && reportData.rows.length > 0 && (
+                              <div className="space-y-1.5 pt-0.5">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
+                                  {reportData.report_type === 'day-book' ? 'Day Book Transactions' : reportData.report_type === 'voucher-lines' ? 'Itemized Lines' : 'Ledger Balances'} ({reportData.rows.length})
+                                </span>
+                                <div className="divide-y divide-slate-100 max-h-36 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/60 p-1">
+                                  {reportData.rows.slice(0, 4).map((row: any, idx: number) => (
+                                    <div key={idx} className="flex items-center justify-between py-1.5 px-2 text-[11px]">
+                                      <div>
+                                        <span className="font-semibold text-slate-800 block leading-tight">
+                                          {row.party_ledger || row.ledger_name || row.particulars || row.item_name || 'Entry'}
+                                        </span>
+                                        <span className="text-[9.5px] text-slate-400 font-mono">
+                                          {row.voucher_type ? `${row.voucher_type} #${row.voucher_number || ''}` : row.group || row.ledger_type || (row.unit ? `${row.quantity} ${row.unit} @ ₹${row.rate}` : '')}
+                                        </span>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="font-bold text-slate-900 font-mono block">
+                                          ₹{(row.amount || row.debit || row.credit || row.closing_balance || 0)?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                        </span>
+                                        {row.debit > 0 && <span className="text-[9px] text-rose-600 font-bold">Dr</span>}
+                                        {row.credit > 0 && <span className="text-[9px] text-emerald-600 font-bold">Cr</span>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* WhatsApp Share Button */}
+                            <div className="pt-1 flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const title = reportData.report_title || 'Accounting Report'
+                                  const comp = reportData.company_name || 'CtrlBooks'
+                                  const per = reportData.period_label || 'Today'
+                                  const cnt = reportData.total_count || 0
+                                  let details = ''
+                                  if (reportData.report_type === 'day-book') {
+                                    details = `\n• Total Credit (In): ₹${reportData.total_credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Total Debit (Out): ₹${reportData.total_debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Net Flow: ₹${reportData.net_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                                  } else if (reportData.report_type === 'trial-balance') {
+                                    details = `\n• Total Debit: ₹${reportData.total_debit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Total Credit: ₹${reportData.total_credit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                                  } else if (reportData.report_type === 'pnl') {
+                                    details = `\n• Revenue: ₹${reportData.total_income?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Expenses: ₹${reportData.total_expense?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Net Profit: ₹${reportData.net_profit?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                                  } else if (reportData.report_type === 'balance-sheet') {
+                                    details = `\n• Assets: ₹${reportData.total_assets?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n• Liabilities: ₹${reportData.total_liabilities?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                                  }
+                                  const text = `📊 *${comp} - ${title} (${per})*\n• Total Entries: ${cnt}${details}\n- Generated via CtrlBooks AI.`
+                                  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+                                }}
+                                className="flex-1 py-1.5 px-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-semibold flex items-center justify-center space-x-1 shadow-2xs transition cursor-pointer"
+                              >
+                                <Share2 className="w-3 h-3" />
+                                <span>WhatsApp Report</span>
                               </button>
                             </div>
                           </div>
