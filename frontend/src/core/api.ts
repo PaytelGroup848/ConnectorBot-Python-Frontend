@@ -2,6 +2,11 @@ import type { ChatMessage, QueueItem, TallyStatus, DashboardMetrics, TallyCompan
 
 export const getBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
+    // 0. Same-origin priority: when accessed on aiassistant.ctrlbooks.com, always use relative /api/v1
+    if (window.location.hostname === 'aiassistant.ctrlbooks.com') {
+      return '/api/v1'
+    }
+
     // 1. Global window configuration (highest priority for embedders)
     const globalCfg = (window as any).CtrlBooksAI || {}
     if (globalCfg.apiUrl) return globalCfg.apiUrl.replace(/\/+$/, '')
