@@ -79,6 +79,14 @@ function shouldShowWidget(dataset: DOMStringMap, globalCfg: any): boolean {
   if (globalCfg.forceShow === true || dataset.forceShow === 'true') return true
   if (globalCfg.forceHide === true || dataset.forceHide === 'true') return false
 
+  // Allow localhost / local development & admin portal to show widget
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname || ''
+    if (host === 'localhost' || host === '127.0.0.1' || host === 'aiassistant.ctrlbooks.com') {
+      return true
+    }
+  }
+
   const requireAuth = dataset.requireAuth !== 'false' && globalCfg.requireAuth !== false
   if (!requireAuth) return true
 
@@ -119,7 +127,7 @@ function initCtrlBooksWidget() {
     } catch (e) {}
   }
   if (!resolvedApiUrl) {
-    resolvedApiUrl = 'https://aiassistant.ctrlbooks.com/api/v1'
+    resolvedApiUrl = 'http://210.56.147.234:8001/api/v1'
   }
 
   const effectiveToken =

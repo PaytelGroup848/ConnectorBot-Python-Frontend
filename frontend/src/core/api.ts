@@ -2,38 +2,7 @@ import type { ChatMessage, QueueItem, TallyStatus, DashboardMetrics, TallyCompan
 
 export const getBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
-    // 0. Same-origin priority: when accessed on aiassistant.ctrlbooks.com, always use relative /api/v1
-    if (window.location.hostname === 'aiassistant.ctrlbooks.com') {
-      return '/api/v1'
-    }
-
-    // 1. Global window configuration (highest priority for embedders)
-    const globalCfg = (window as any).CtrlBooksAI || {}
-    if (globalCfg.apiUrl) return globalCfg.apiUrl.replace(/\/+$/, '')
-
-    // 2. Embedded Script Tag Detection (currentScript, data-api-url, or widget script patterns)
-    const script = (
-      document.currentScript ||
-      document.querySelector('script[data-api-url]') ||
-      document.querySelector('script[src*="widget"]') ||
-      document.querySelector('script[src*="ctrlbooks"]')
-    ) as HTMLScriptElement | null
-
-    if (script) {
-      if (script.dataset && script.dataset.apiUrl) {
-        return script.dataset.apiUrl.replace(/\/+$/, '')
-      }
-      if (script.src) {
-        try {
-          const u = new URL(script.src, window.location.href)
-          if (u.origin && u.origin !== window.location.origin) {
-            return `${u.origin}/api/v1`
-          }
-        } catch (e) {}
-      }
-    }
-
-    // 3. Check Vite Environment Variable (.env)
+    // 1. Check Vite Environment Variable (.env)
     const envUrl = (import.meta as any).env?.VITE_API_URL
     if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
       if (window.location.port === '5173' && envUrl.includes('localhost:8001')) {
@@ -42,29 +11,32 @@ export const getBaseUrl = (): string => {
       return envUrl.replace(/\/+$/, '')
     }
 
-    // 4. In local development with Vite proxy (only for internal admin dashboard itself)
-    const isEmbeddedWidget = Boolean(
-      document.getElementById('ctrlbooks-ai-widget-host') ||
-      document.getElementById('ctrlbooks-ai-widget-root') ||
-      script
-    )
+    // 2. Global window configuration
+    const globalCfg = (window as any).CtrlBooksAI || {}
+    if (globalCfg.apiUrl) return globalCfg.apiUrl.replace(/\/+$/, '')
 
-    if (window.location.port === '5173' && !isEmbeddedWidget) {
+    // 3. Embedded Script Tag Detection (widget.js)
+    const script = document.querySelector('script[src*="widget.js"]') as HTMLScriptElement
+    if (script) {
+      if (script.dataset && script.dataset.apiUrl) {
+        return script.dataset.apiUrl.replace(/\/+$/, '')
+      }
+      if (script.src) {
+        try {
+          const u = new URL(script.src)
+          return `${u.origin}/api/v1`
+        } catch (e) {}
+      }
+    }
+
+    // 4. In local development with Vite proxy
+    if (window.location.port === '5173') {
       return '/api/v1'
     }
 
-    // 5. Automatic resolution for aiassistant.ctrlbooks.com
-    if (window.location.hostname === 'aiassistant.ctrlbooks.com') {
-      return '/api/v1'
-    }
-
+    // 5. Automatic resolution for Port 3000 -> Port 8001 on same host
     if (window.location.port === '3000') {
       return `${window.location.protocol}//${window.location.hostname}:8001/api/v1`
-    }
-
-    // 6. External Host Fallback: default to official cloud backend if embedded on customer/host site
-    if (isEmbeddedWidget) {
-      return 'https://aiassistant.ctrlbooks.com/api/v1'
     }
   }
   return '/api/v1'
@@ -74,7 +46,66 @@ const BASE_URL = {
   toString: () => getBaseUrl(),
 }
 
+let cachedAiSessionToken: string | null = null
+
 export const api = {
+  // Resolve or exchange active authentication token for AI session
+  async getAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {}
+    if (typeof window === 'undefined') return headers
+
+    if (!cachedAiSessionToken) {
+      try {
+        cachedAiSessionToken = window.sessionStorage.getItem('ctrlbooks_ai_session_token')
+      } catch (e) {}
+    }
+
+    const globalCfg = (window as any).CtrlBooksAI || {}
+    const connectorToken =
+      globalCfg.authToken ||
+      globalCfg.connectorToken ||
+      window.localStorage.getItem('accessToken') ||
+      window.localStorage.getItem('token') ||
+      window.localStorage.getItem('web_token') ||
+      window.localStorage.getItem('jwt')
+
+    if (cachedAiSessionToken) {
+      headers['Authorization'] = `Bearer ${cachedAiSessionToken}`
+      return headers
+    }
+
+    if (connectorToken && connectorToken !== 'undefined' && connectorToken !== 'null' && connectorToken.trim() !== '') {
+      try {
+        const exchangeRes = await fetch(`${BASE_URL}/session/exchange`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            connector_token: connectorToken.trim(),
+            email: globalCfg.userEmail || undefined,
+            name: globalCfg.userName || undefined,
+          }),
+        })
+        if (exchangeRes.ok) {
+          const exJson = await exchangeRes.json()
+          if (exJson.data?.access_token) {
+            cachedAiSessionToken = exJson.data.access_token
+            try {
+              window.sessionStorage.setItem('ctrlbooks_ai_session_token', cachedAiSessionToken!)
+            } catch (e) {}
+            headers['Authorization'] = `Bearer ${cachedAiSessionToken}`
+            return headers
+          }
+        }
+      } catch (e) {}
+
+      // Fallback: send connector token directly in headers
+      headers['Authorization'] = `Bearer ${connectorToken.trim()}`
+      headers['X-Connector-Token'] = connectorToken.trim()
+    }
+
+    return headers
+  },
+
   // 1. Text Chat Endpoint
   async sendChatMessage(
     message: string,
@@ -93,9 +124,13 @@ export const api = {
     conversation_id: string
     tool_calls?: any[]
   }> {
+    const authHeaders = await this.getAuthHeaders()
     const res = await fetch(`${BASE_URL}/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
       body: JSON.stringify({
         message,
         conversation_id: conversationId,
@@ -175,8 +210,10 @@ export const api = {
       formData.append('text_prompt', transcript.trim())
     }
 
+    const authHeaders = await this.getAuthHeaders()
     const res = await fetch(`${BASE_URL}/voice/chat`, {
       method: 'POST',
+      headers: { ...authHeaders },
       body: formData,
     })
 
@@ -200,7 +237,10 @@ export const api = {
 
   // 3. CtrlBooks 2-Way Queue
   async fetchQueue(): Promise<QueueItem[]> {
-    const res = await fetch(`${BASE_URL}/connector/queue`)
+    const authHeaders = await this.getAuthHeaders()
+    const res = await fetch(`${BASE_URL}/connector/queue`, {
+      headers: { ...authHeaders },
+    })
     if (!res.ok) throw new Error('Failed to load queue')
     const json = await res.json()
     return json.data?.items || []
@@ -212,13 +252,16 @@ export const api = {
     userEmail?: string,
     tallyPort?: number
   ): Promise<TallyStatus> {
+    const authHeaders = await this.getAuthHeaders()
     const params = new URLSearchParams()
     if (companyName) params.set('company_name', companyName)
     if (userEmail) params.set('user_email', userEmail)
     if (tallyPort && tallyPort > 0) params.set('tally_port', String(tallyPort))
     const qs = params.toString() ? `?${params.toString()}` : ''
 
-    const res = await fetch(`${BASE_URL}/connector/status${qs}`)
+    const res = await fetch(`${BASE_URL}/connector/status${qs}`, {
+      headers: { ...authHeaders },
+    })
     if (!res.ok) {
       return {
         is_online: false,
@@ -233,7 +276,10 @@ export const api = {
 
   // 5. Dashboard Metrics & KPIs
   async fetchDashboardMetrics(companyName: string = ''): Promise<DashboardMetrics> {
-    const res = await fetch(`${BASE_URL}/connector/dashboard/metrics?company_name=${encodeURIComponent(companyName)}`)
+    const authHeaders = await this.getAuthHeaders()
+    const res = await fetch(`${BASE_URL}/connector/dashboard/metrics?company_name=${encodeURIComponent(companyName)}`, {
+      headers: { ...authHeaders },
+    })
     if (!res.ok) throw new Error('Failed to load dashboard metrics')
     const json = await res.json()
     return json.data
@@ -241,7 +287,10 @@ export const api = {
 
   // 6. Connected Tally Companies
   async fetchCompanies(): Promise<TallyCompany[]> {
-    const res = await fetch(`${BASE_URL}/connector/companies`)
+    const authHeaders = await this.getAuthHeaders()
+    const res = await fetch(`${BASE_URL}/connector/companies`, {
+      headers: { ...authHeaders },
+    })
     if (!res.ok) throw new Error('Failed to load companies')
     const json = await res.json()
     return json.data || []
@@ -255,9 +304,10 @@ export const api = {
     total_amount: number
     narration?: string
   }): Promise<any> {
+    const authHeaders = await this.getAuthHeaders()
     const res = await fetch(`${BASE_URL}/connector/vouchers/sales`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify(payload),
     })
     if (!res.ok) throw new Error('Failed to create voucher')
@@ -267,26 +317,20 @@ export const api = {
 
   // 8. Enterprise Support Tickets Queue & Engineer Actions
   async fetchTickets(): Promise<any[]> {
-    const headers: Record<string, string> = {}
-    if (typeof window !== 'undefined') {
-      const token =
-        window.localStorage.getItem('token') ||
-        window.localStorage.getItem('accessToken') ||
-        window.localStorage.getItem('web_token') ||
-        window.localStorage.getItem('jwt')
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-    }
-    const res = await fetch(`${BASE_URL}/tickets`, { headers })
+    const authHeaders = await this.getAuthHeaders()
+    const res = await fetch(`${BASE_URL}/tickets`, {
+      headers: { ...authHeaders },
+    })
     if (!res.ok) return []
     const json = await res.json()
     return json.data?.items || []
   },
 
   async closeTicket(ticketId: string): Promise<any> {
+    const authHeaders = await this.getAuthHeaders()
     const res = await fetch(`${BASE_URL}/tickets/${ticketId}/close`, {
       method: 'POST',
+      headers: { ...authHeaders },
     })
     if (!res.ok) throw new Error('Failed to close ticket')
     const json = await res.json()
@@ -294,9 +338,10 @@ export const api = {
   },
 
   async updateTicketAction(ticketId: string, status: string, reply?: string): Promise<any> {
+    const authHeaders = await this.getAuthHeaders()
     const res = await fetch(`${BASE_URL}/tickets/${ticketId}/action`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ status, reply }),
     })
     if (!res.ok) throw new Error('Failed to update ticket')
@@ -310,7 +355,10 @@ export const api = {
     title: string
     messages: ChatMessage[]
   }> {
-    const res = await fetch(`${BASE_URL}/conversations/${conversationId}`)
+    const authHeaders = await this.getAuthHeaders()
+    const res = await fetch(`${BASE_URL}/conversations/${conversationId}`, {
+      headers: { ...authHeaders },
+    })
     if (!res.ok) throw new Error('Failed to load conversation')
     const json = await res.json()
     const d = json.data || {}
@@ -355,7 +403,10 @@ export const api = {
   },
 
   async fetchRecentConversations(limit: number = 10): Promise<Array<{ id: string; title: string; created_at: string }>> {
-    const res = await fetch(`${BASE_URL}/conversations?page=1&page_size=${limit}`)
+    const authHeaders = await this.getAuthHeaders()
+    const res = await fetch(`${BASE_URL}/conversations?page=1&page_size=${limit}`, {
+      headers: { ...authHeaders },
+    })
     if (!res.ok) return []
     const json = await res.json()
     return json.data?.items || []
