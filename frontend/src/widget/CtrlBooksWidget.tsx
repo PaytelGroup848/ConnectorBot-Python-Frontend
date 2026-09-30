@@ -11,6 +11,7 @@ import {
   ExternalLink,
   PlusCircle,
   Ticket,
+  GripHorizontal,
 } from 'lucide-react'
 import type { ChatMessage, QueueItem, TallyStatus } from '../core/types'
 import { api } from '../core/api'
@@ -101,6 +102,223 @@ export const CtrlBooksWidget = ({
 
   const WIDGET_STORAGE_CONV_KEY = 'ctrlbooks_widget_conversation_id'
   const WIDGET_STORAGE_MSGS_KEY = 'ctrlbooks_widget_cached_messages'
+  const STORAGE_LAUNCHER_POS_KEY = 'ctrlbooks_widget_launcher_pos'
+  const STORAGE_WINDOW_POS_KEY = 'ctrlbooks_widget_window_pos'
+
+  interface WidgetPosition {
+    x: number
+    y: number
+  }
+
+  // Persistent user-defined placement (Saved in localStorage)
+  const [launcherPos, setLauncherPos] = useState<WidgetPosition | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem(STORAGE_LAUNCHER_POS_KEY)
+        if (saved) return JSON.parse(saved)
+      } catch (e) {}
+    }
+    return null
+  })
+
+  const [windowPos, setWindowPos] = useState<WidgetPosition | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = window.localStorage.getItem(STORAGE_WINDOW_POS_KEY)
+        if (saved) return JSON.parse(saved)
+      } catch (e) {}
+    }
+    return null
+  })
+
+  const clampPosition = (pos: WidgetPosition, width: number, height: number): WidgetPosition => {
+    if (typeof window === 'undefined') return pos
+    const margin = 12
+    const maxX = Math.max(margin, window.innerWidth - width - margin)
+    const maxY = Math.max(margin, window.innerHeight - height - margin)
+    return {
+      x: Math.max(margin, Math.min(pos.x, maxX)),
+      y: Math.max(margin, Math.min(pos.y, maxY)),
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleResize = () => {
+      if (launcherPos) {
+        setLauncherPos((prev) => (prev ? clampPosition(prev, 64, 64) : null))
+      }
+      if (windowPos) {
+        setWindowPos((prev) => (prev ? clampPosition(prev, 440, 640) : null))
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [launcherPos, windowPos])
+
+  const launcherRef = useRef<HTMLDivElement | null>(null)
+  const windowRef = useRef<HTMLDivElement | null>(null)
+  const pillRef = useRef<HTMLDivElement | null>(null)
+  const isDraggingRef = useRef(false)
+  const dragStartPosRef = useRef({ x: 0, y: 0 })
+  const elementStartPosRef = useRef({ x: 0, y: 0 })
+
+  const handleLauncherPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    const el = launcherRef.current
+    if (!el) return
+
+    const rect = el.getBoundingClientRect()
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY }
+    elementStartPosRef.current = { x: rect.left, y: rect.top }
+    isDraggingRef.current = false
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - dragStartPosRef.current.x
+      const dy = moveEvent.clientY - dragStartPosRef.current.y
+
+      if (!isDraggingRef.current && Math.hypot(dx, dy) > 5) {
+        isDraggingRef.current = true
+      }
+
+      if (isDraggingRef.current) {
+        const nextX = elementStartPosRef.current.x + dx
+        const nextY = elementStartPosRef.current.y + dy
+        const clamped = clampPosition({ x: nextX, y: nextY }, rect.width, rect.height)
+        setLauncherPos(clamped)
+      }
+    }
+
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+
+      if (isDraggingRef.current) {
+        const dx = upEvent.clientX - dragStartPosRef.current.x
+        const dy = upEvent.clientY - dragStartPosRef.current.y
+        const nextX = elementStartPosRef.current.x + dx
+        const nextY = elementStartPosRef.current.y + dy
+        const clamped = clampPosition({ x: nextX, y: nextY }, rect.width, rect.height)
+        setLauncherPos(clamped)
+        try {
+          window.localStorage.setItem(STORAGE_LAUNCHER_POS_KEY, JSON.stringify(clamped))
+        } catch (err) {}
+      } else {
+        setIsOpen(true)
+        setIsMinimized(false)
+      }
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+  }
+
+  const handleMinimizedPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('a')) return
+
+    const pill = pillRef.current
+    if (!pill) return
+
+    const rect = pill.getBoundingClientRect()
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY }
+    elementStartPosRef.current = { x: rect.left, y: rect.top }
+    isDraggingRef.current = false
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - dragStartPosRef.current.x
+      const dy = moveEvent.clientY - dragStartPosRef.current.y
+
+      if (!isDraggingRef.current && Math.hypot(dx, dy) > 5) {
+        isDraggingRef.current = true
+      }
+
+      if (isDraggingRef.current) {
+        const nextX = elementStartPosRef.current.x + dx
+        const nextY = elementStartPosRef.current.y + dy
+        const clamped = clampPosition({ x: nextX, y: nextY }, rect.width, rect.height)
+        setLauncherPos(clamped)
+      }
+    }
+
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+
+      if (isDraggingRef.current) {
+        const dx = upEvent.clientX - dragStartPosRef.current.x
+        const dy = upEvent.clientY - dragStartPosRef.current.y
+        const nextX = elementStartPosRef.current.x + dx
+        const nextY = elementStartPosRef.current.y + dy
+        const clamped = clampPosition({ x: nextX, y: nextY }, rect.width, rect.height)
+        setLauncherPos(clamped)
+        try {
+          window.localStorage.setItem(STORAGE_LAUNCHER_POS_KEY, JSON.stringify(clamped))
+        } catch (err) {}
+      }
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+  }
+
+  const handleHeaderPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('a')) return
+    if (typeof window !== 'undefined' && window.innerWidth < 640) return
+
+    const win = windowRef.current
+    if (!win) return
+
+    const rect = win.getBoundingClientRect()
+    dragStartPosRef.current = { x: e.clientX, y: e.clientY }
+    elementStartPosRef.current = { x: rect.left, y: rect.top }
+    isDraggingRef.current = false
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - dragStartPosRef.current.x
+      const dy = moveEvent.clientY - dragStartPosRef.current.y
+
+      if (!isDraggingRef.current && Math.hypot(dx, dy) > 4) {
+        isDraggingRef.current = true
+      }
+
+      if (isDraggingRef.current) {
+        const nextX = elementStartPosRef.current.x + dx
+        const nextY = elementStartPosRef.current.y + dy
+        const clamped = clampPosition({ x: nextX, y: nextY }, rect.width, rect.height)
+        setWindowPos(clamped)
+      }
+    }
+
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+
+      if (isDraggingRef.current) {
+        const dx = upEvent.clientX - dragStartPosRef.current.x
+        const dy = upEvent.clientY - dragStartPosRef.current.y
+        const nextX = elementStartPosRef.current.x + dx
+        const nextY = elementStartPosRef.current.y + dy
+        const clamped = clampPosition({ x: nextX, y: nextY }, rect.width, rect.height)
+        setWindowPos(clamped)
+        try {
+          window.localStorage.setItem(STORAGE_WINDOW_POS_KEY, JSON.stringify(clamped))
+        } catch (err) {}
+      }
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+  }
 
   const defaultWelcomeMessage: ChatMessage = {
     id: 'welcome-msg',
@@ -417,176 +635,248 @@ export const CtrlBooksWidget = ({
   const isFullScreenMobile = isOpen && !isMinimized
 
   return (
-    <div
-      className={`fixed ${
-        isFullScreenMobile
-          ? `inset-0 sm:inset-auto ${desktopPosition}`
-          : launcherPosition
-      } z-99999 font-sans antialiased pointer-events-auto`}
-    >
-      {/* 1. Closed State: Floating Action Launcher Button */}
+    <>
+      {/* 1. Closed State: Floating Action Launcher Button (Draggable) */}
       {!isOpen && (
-        <button
-          onClick={() => {
-            setIsOpen(true)
-            setIsMinimized(false)
+        <div
+          ref={launcherRef}
+          onPointerDown={handleLauncherPointerDown}
+          onDoubleClick={() => {
+            setLauncherPos(null)
+            try {
+              window.localStorage.removeItem(STORAGE_LAUNCHER_POS_KEY)
+            } catch (e) {}
           }}
-          className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xl hover:shadow-emerald-700/50 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
-          title="Open CtrlBooks AI Assistant"
+          style={
+            launcherPos
+              ? {
+                  position: 'fixed',
+                  left: `${launcherPos.x}px`,
+                  top: `${launcherPos.y}px`,
+                  right: 'auto',
+                  bottom: 'auto',
+                  touchAction: 'none',
+                }
+              : { touchAction: 'none' }
+          }
+          className={`fixed ${!launcherPos ? launcherPosition : ''} z-99999 font-sans antialiased pointer-events-auto select-none`}
         >
-          {/* Pulsing ring */}
-          <span className="absolute -inset-1 rounded-full bg-emerald-500 opacity-40 animate-ping"></span>
-          <div className="relative flex items-center justify-center">
-            <Sparkles className="w-6 h-6 animate-pulse" />
-          </div>
-
-          {/* Tooltip badge */}
-          <div className="absolute right-16 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-lg pointer-events-none hidden sm:block">
-            CtrlBooks AI Assistant
-          </div>
-        </button>
-      )}
-
-      {/* 2. Minimized State: Sleek Floating Pill Bar */}
-      {isOpen && isMinimized && (
-        <div className="flex items-center gap-1.5 sm:gap-2.5 bg-linear-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white pl-3 pr-2 py-1.5 sm:py-2 rounded-full shadow-2xl border border-white/20 select-none whitespace-nowrap max-w-[calc(100vw-2rem)]">
           <button
-            onClick={() => setIsMinimized(false)}
-            className="flex items-center gap-1.5 sm:gap-2 hover:opacity-90 transition text-left cursor-pointer"
-            title="Click to expand CtrlBooks AI"
+            type="button"
+            className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xl hover:shadow-emerald-700/50 transition-transform duration-150 hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing select-none"
+            title="Drag to reposition / Click to open CtrlBooks AI (Double-click to reset)"
           >
-            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/15 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
-              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-300" />
+            {/* Pulsing ring */}
+            <span className="absolute -inset-1 rounded-full bg-emerald-500 opacity-40 animate-ping"></span>
+            <div className="relative flex items-center justify-center">
+              <Sparkles className="w-6 h-6 animate-pulse" />
             </div>
-            <div className="flex items-center gap-1 sm:gap-1.5">
-              <span className="font-bold text-xs tracking-tight">CtrlBooks AI</span>
-              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 hidden xs:inline">
-                Assistant
-              </span>
+
+            {/* Tooltip badge */}
+            <div className="absolute right-16 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-lg pointer-events-none hidden sm:block">
+              CtrlBooks AI Assistant
             </div>
           </button>
+        </div>
+      )}
 
-          <a
-            href="https://patwatoliai.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden md:inline-flex items-center space-x-1 text-[10px] font-semibold text-emerald-200/90 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded-full border border-white/20 transition-colors"
-            title="Visit patwatoliai.com"
-          >
-            <span>by patwatoliai.com</span>
-            <ExternalLink className="w-2.5 h-2.5 opacity-80" />
-          </a>
-
-          {/* Port Status */}
-          <div className="hidden sm:flex items-center space-x-1 text-[10.5px] text-emerald-100 pl-1 border-l border-white/20">
-            {tallyStatus?.is_online && activePort ? (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
-                <span>Port {activePort} Online</span>
-              </>
-            ) : (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                <span>{activePort ? `Port ${activePort} Standby` : 'Tally: Auto'}</span>
-              </>
-            )}
-          </div>
-
-          {/* Window Action Buttons */}
-          <div className="flex items-center space-x-0.5 pl-1 border-l border-white/20">
+      {/* 2. Minimized State: Sleek Floating Pill Bar (Draggable) */}
+      {isOpen && isMinimized && (
+        <div
+          ref={pillRef}
+          onPointerDown={handleMinimizedPointerDown}
+          style={
+            launcherPos
+              ? {
+                  position: 'fixed',
+                  left: `${launcherPos.x}px`,
+                  top: `${launcherPos.y}px`,
+                  right: 'auto',
+                  bottom: 'auto',
+                  touchAction: 'none',
+                }
+              : { touchAction: 'none' }
+          }
+          className={`fixed ${!launcherPos ? launcherPosition : ''} z-99999 font-sans antialiased pointer-events-auto select-none`}
+        >
+          <div className="flex items-center gap-1.5 sm:gap-2.5 bg-linear-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white pl-3 pr-2 py-1.5 sm:py-2 rounded-full shadow-2xl border border-white/20 select-none whitespace-nowrap max-w-[calc(100vw-2rem)] cursor-grab active:cursor-grabbing">
             <button
+              type="button"
               onClick={() => setIsMinimized(false)}
-              title="Maximize"
-              className="p-1 rounded-lg text-emerald-200 hover:text-white hover:bg-white/15 transition cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 hover:opacity-90 transition text-left cursor-pointer"
+              title="Click to expand CtrlBooks AI"
             >
-              <Maximize2 className="w-3.5 h-3.5" />
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/15 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
+                <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-300" />
+              </div>
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <span className="font-bold text-xs tracking-tight">CtrlBooks AI</span>
+                <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 hidden xs:inline">
+                  Assistant
+                </span>
+              </div>
             </button>
-            <button
-              onClick={() => setIsOpen(false)}
-              title="Close"
-              className="p-1 rounded-lg text-emerald-200 hover:text-white hover:bg-white/15 transition cursor-pointer"
+
+            <a
+              href="https://patwatoliai.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden md:inline-flex items-center space-x-1 text-[10px] font-semibold text-emerald-200/90 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded-full border border-white/20 transition-colors"
+              title="Visit patwatoliai.com"
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
+              <span>by patwatoliai.com</span>
+              <ExternalLink className="w-2.5 h-2.5 opacity-80" />
+            </a>
+
+            {/* Port Status */}
+            <div className="hidden sm:flex items-center space-x-1 text-[10.5px] text-emerald-100 pl-1 border-l border-white/20">
+              {tallyStatus?.is_online && activePort ? (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
+                  <span>Port {activePort} Online</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                  <span>{activePort ? `Port ${activePort} Standby` : 'Tally: Auto'}</span>
+                </>
+              )}
+            </div>
+
+            {/* Window Action Buttons */}
+            <div className="flex items-center space-x-0.5 pl-1 border-l border-white/20">
+              <button
+                type="button"
+                onClick={() => setIsMinimized(false)}
+                title="Maximize"
+                className="p-1 rounded-lg text-emerald-200 hover:text-white hover:bg-white/15 transition cursor-pointer"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                title="Close"
+                className="p-1 rounded-lg text-emerald-200 hover:text-white hover:bg-white/15 transition cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* 3. Open State: Full Floating AI Assistant Window */}
+      {/* 3. Open State: Full Floating AI Assistant Window (Draggable by Header) */}
       {isOpen && !isMinimized && (
-        <div className="flex flex-col bg-white overflow-hidden w-full h-[100dvh] max-h-[100dvh] rounded-none border-none sm:rounded-3xl sm:border sm:border-slate-200 sm:shadow-2xl sm:w-105 md:w-115 sm:h-160 sm:max-h-[calc(100vh-4rem)]">
-          {/* Header */}
-          <div className="bg-linear-to-r from-emerald-800 via-emerald-700 to-teal-800 px-3.5 sm:px-4 py-2.5 sm:py-3 text-white flex items-center justify-between shrink-0 shadow-xs select-none">
-            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center text-white border border-white/20 shrink-0">
-                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center space-x-1.5">
-                  <h3 className="font-bold text-xs sm:text-sm tracking-tight leading-none whitespace-nowrap">CtrlBooks AI</h3>
-                  <span className="text-[8.5px] sm:text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 whitespace-nowrap">
-                    Assistant
-                  </span>
-                  <a
-                    href="https://patwatoliai.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hidden md:inline-flex items-center space-x-1 text-[10px] font-semibold text-emerald-200/90 hover:text-white bg-white/10 hover:bg-white/20 px-1.5 py-0.5 rounded border border-white/20 transition-colors ml-1 whitespace-nowrap"
-                    title="Visit patwatoliai.com"
-                  >
-                    <span>by patwatoliai.com</span>
-                    <ExternalLink className="w-2.5 h-2.5 opacity-80" />
-                  </a>
+        <div
+          ref={windowRef}
+          style={
+            windowPos && typeof window !== 'undefined' && window.innerWidth >= 640
+              ? {
+                  position: 'fixed',
+                  left: `${windowPos.x}px`,
+                  top: `${windowPos.y}px`,
+                  right: 'auto',
+                  bottom: 'auto',
+                }
+              : undefined
+          }
+          className={`fixed ${
+            isFullScreenMobile ? 'inset-0 sm:inset-auto' : ''
+          } ${
+            !windowPos && !isFullScreenMobile ? desktopPosition : ''
+          } z-99999 font-sans antialiased pointer-events-auto`}
+        >
+          <div className="flex flex-col bg-white overflow-hidden w-full h-[100dvh] max-h-[100dvh] rounded-none border-none sm:rounded-3xl sm:border sm:border-slate-200 sm:shadow-2xl sm:w-105 md:w-115 sm:h-160 sm:max-h-[calc(100vh-4rem)]">
+            {/* Header with Drag Handle */}
+            <div
+              onPointerDown={handleHeaderPointerDown}
+              onDoubleClick={() => {
+                setWindowPos(null)
+                try {
+                  window.localStorage.removeItem(STORAGE_WINDOW_POS_KEY)
+                } catch (e) {}
+              }}
+              className="bg-linear-to-r from-emerald-800 via-emerald-700 to-teal-800 px-3.5 sm:px-4 py-2.5 sm:py-3 text-white flex items-center justify-between shrink-0 shadow-xs select-none sm:cursor-grab sm:active:cursor-grabbing"
+              title="Click & drag header to reposition anywhere (Double-click to reset)"
+            >
+              <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center text-white border border-white/20 shrink-0">
+                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />
                 </div>
-                <div className="flex items-center space-x-1 text-[10px] sm:text-[11px] text-emerald-100 mt-0.5 whitespace-nowrap truncate">
-                  {tallyStatus?.is_online && activePort ? (
-                    <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse shrink-0"></span>
-                      <span>Port {activePort} Online</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
-                      <span>{activePort ? `Port ${activePort} Standby` : 'Tally Port: Auto-Detect'}</span>
-                    </>
-                  )}
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-1.5">
+                    <h3 className="font-bold text-xs sm:text-sm tracking-tight leading-none whitespace-nowrap">CtrlBooks AI</h3>
+                    <span className="text-[8.5px] sm:text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 whitespace-nowrap">
+                      Assistant
+                    </span>
+                    <a
+                      href="https://patwatoliai.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hidden md:inline-flex items-center space-x-1 text-[10px] font-semibold text-emerald-200/90 hover:text-white bg-white/10 hover:bg-white/20 px-1.5 py-0.5 rounded border border-white/20 transition-colors ml-1 whitespace-nowrap"
+                      title="Visit patwatoliai.com"
+                    >
+                      <span>by patwatoliai.com</span>
+                      <ExternalLink className="w-2.5 h-2.5 opacity-80" />
+                    </a>
+                  </div>
+                  <div className="flex items-center space-x-1 text-[10px] sm:text-[11px] text-emerald-100 mt-0.5 whitespace-nowrap truncate">
+                    {tallyStatus?.is_online && activePort ? (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse shrink-0"></span>
+                        <span>Port {activePort} Online</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+                        <span>{activePort ? `Port ${activePort} Standby` : 'Tally Port: Auto-Detect'}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Window Controls */}
-            <div className="flex items-center space-x-0.5 sm:space-x-1 shrink-0">
-              <button
-                onClick={handleNewChat}
-                title="Start New Chat (Nayi Chat)"
-                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
-              >
-                <PlusCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-              </button>
-              <button
-                onClick={checkStatus}
-                disabled={isRefreshing}
-                title="Refresh Tally Status"
-                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer hidden xs:inline-flex"
-              >
-                <RefreshCw className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </button>
-              <button
-                onClick={() => setIsMinimized(true)}
-                title="Minimize"
-                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer hidden sm:inline-flex"
-              >
-                <Minus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setIsOpen(false)}
-                title="Close"
-                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              {/* Window Controls */}
+              <div className="flex items-center space-x-0.5 sm:space-x-1 shrink-0">
+                <div className="hidden sm:flex items-center px-1 text-emerald-300/60" title="Drag to move">
+                  <GripHorizontal className="w-4 h-4" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleNewChat}
+                  title="Start New Chat (Nayi Chat)"
+                  className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={checkStatus}
+                  disabled={isRefreshing}
+                  title="Refresh Tally Status"
+                  className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer hidden xs:inline-flex"
+                >
+                  <RefreshCw className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMinimized(true)}
+                  title="Minimize"
+                  className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer hidden sm:inline-flex"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  title="Close"
+                  className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
 
           {/* Sleek Segmented Tab Switcher */}
           <div className="flex items-center bg-slate-100/90 border-b border-slate-200 p-1 shrink-0 select-none">
@@ -863,7 +1153,8 @@ export const CtrlBooksWidget = ({
             </div>
           )}
         </div>
-      )}
-    </div>
+      </div>
+    )}
+  </>
   )
 }
