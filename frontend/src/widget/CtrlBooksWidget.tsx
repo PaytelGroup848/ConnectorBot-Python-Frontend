@@ -49,9 +49,16 @@ export const CtrlBooksWidget = ({
   userPhone,
   tallyPort,
   authToken,
+  apiUrl,
   positionClassName,
   onVoucherCreated,
 }: CtrlBooksWidgetProps) => {
+  // Sync apiUrl if passed as prop
+  if (apiUrl && typeof window !== 'undefined') {
+    if (!(window as any).CtrlBooksAI) (window as any).CtrlBooksAI = {}
+    ;(window as any).CtrlBooksAI.apiUrl = apiUrl
+  }
+
   // Auto-resolve logged-in user identity, CompanyId, & Connector Web Token from props, window.CtrlBooksAI, or localStorage
   const globalCfg = typeof window !== 'undefined' ? (window as any).CtrlBooksAI || {} : {}
   const storedToken =
@@ -401,7 +408,7 @@ export const CtrlBooksWidget = ({
   }
 
   return (
-    <div className={`fixed ${resolvedPosition} z-99999 font-sans antialiased`}>
+    <div className={`fixed ${resolvedPosition} z-99999 font-sans antialiased pointer-events-auto`}>
       {/* 1. Closed State: Floating Action Launcher Button */}
       {!isOpen && (
         <button

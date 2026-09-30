@@ -2,7 +2,33 @@ import type { ChatMessage, QueueItem, TallyStatus, DashboardMetrics, TallyCompan
 
 export const getBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
-    // 1. Check Vite Environment Variable (.env)
+    // 1. Global window configuration (highest priority for embedders)
+    const globalCfg = (window as any).CtrlBooksAI || {}
+    if (globalCfg.apiUrl) return globalCfg.apiUrl.replace(/\/+$/, '')
+
+    // 2. Embedded Script Tag Detection (currentScript, data-api-url, or widget script patterns)
+    const script = (
+      document.currentScript ||
+      document.querySelector('script[data-api-url]') ||
+      document.querySelector('script[src*="widget"]') ||
+      document.querySelector('script[src*="ctrlbooks"]')
+    ) as HTMLScriptElement | null
+
+    if (script) {
+      if (script.dataset && script.dataset.apiUrl) {
+        return script.dataset.apiUrl.replace(/\/+$/, '')
+      }
+      if (script.src) {
+        try {
+          const u = new URL(script.src, window.location.href)
+          if (u.origin && u.origin !== window.location.origin) {
+            return `${u.origin}/api/v1`
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 3. Check Vite Environment Variable (.env)
     const envUrl = (import.meta as any).env?.VITE_API_URL
     if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
       if (window.location.port === '5173' && envUrl.includes('localhost:8001')) {
@@ -11,32 +37,25 @@ export const getBaseUrl = (): string => {
       return envUrl.replace(/\/+$/, '')
     }
 
-    // 2. Global window configuration
-    const globalCfg = (window as any).CtrlBooksAI || {}
-    if (globalCfg.apiUrl) return globalCfg.apiUrl.replace(/\/+$/, '')
+    // 4. In local development with Vite proxy (only for internal admin dashboard itself)
+    const isEmbeddedWidget = Boolean(
+      document.getElementById('ctrlbooks-ai-widget-host') ||
+      document.getElementById('ctrlbooks-ai-widget-root') ||
+      script
+    )
 
-    // 3. Embedded Script Tag Detection (widget.js)
-    const script = document.querySelector('script[src*="widget.js"]') as HTMLScriptElement
-    if (script) {
-      if (script.dataset && script.dataset.apiUrl) {
-        return script.dataset.apiUrl.replace(/\/+$/, '')
-      }
-      if (script.src) {
-        try {
-          const u = new URL(script.src)
-          return `${u.origin}/api/v1`
-        } catch (e) {}
-      }
-    }
-
-    // 4. In local development with Vite proxy
-    if (window.location.port === '5173') {
+    if (window.location.port === '5173' && !isEmbeddedWidget) {
       return '/api/v1'
     }
 
     // 5. Automatic resolution for Port 3000 -> Port 8001 on same host
     if (window.location.port === '3000') {
       return `${window.location.protocol}//${window.location.hostname}:8001/api/v1`
+    }
+
+    // 6. External Host Fallback: default to official cloud backend if embedded on customer/host site
+    if (isEmbeddedWidget) {
+      return 'http://210.56.147.234:8001/api/v1'
     }
   }
   return '/api/v1'
