@@ -84,22 +84,11 @@ export const CtrlBooksWidget = ({
       token !== 'null'
     )
 
-    const rawPath = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '')
-    const isPublic =
-      rawPath === '' ||
-      rawPath === '/' ||
-      rawPath === '/login' ||
-      rawPath.startsWith('/login/') ||
-      rawPath === '/register' ||
-      rawPath.startsWith('/register/') ||
-      rawPath === '/signup' ||
-      rawPath.startsWith('/signup/') ||
-      rawPath === '/landing' ||
-      rawPath.startsWith('/landing/')
-
-    if (!hasToken || isPublic) {
+    // SaaS Auth Gate: Hide widget completely from unauthenticated guest / landing page visitors
+    if (!hasToken) {
       return false
     }
+
     return true
   }
 

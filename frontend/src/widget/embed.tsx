@@ -100,12 +100,10 @@ function shouldShowWidget(dataset: DOMStringMap, globalCfg: any): boolean {
   if (!requireAuth) return true
 
   const token = getStoredAuthToken()
-  const isPublic = isPublicMarketingRoute()
 
   // Standard enterprise SaaS rule:
-  // Must have an active auth token AND not be on a public landing/login route
+  // Must have an active auth token to show (guest / unauthenticated landing page visitors are hidden)
   if (!token) return false
-  if (isPublic) return false
 
   return true
 }
