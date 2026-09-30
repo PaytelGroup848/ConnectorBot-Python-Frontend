@@ -42,7 +42,7 @@ export interface CtrlBooksWidgetProps {
 }
 
 export const CtrlBooksWidget = ({
-  initialOpen = true,
+  initialOpen = false,
   companyName = 'CtrlBooks',
   companyId,
   userName,

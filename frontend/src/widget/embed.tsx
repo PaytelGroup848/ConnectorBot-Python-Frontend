@@ -49,6 +49,63 @@ function getScopedStyles(rawCss: string): string {
   return hostIsolationStyles + '\n' + css
 }
 
+function getStoredAuthToken(): string | null {
+  if (typeof window === 'undefined') return null
+  const globalCfg = (window as any).CtrlBooksAI || {}
+  const candidate =
+    globalCfg.authToken ||
+    globalCfg.connectorToken ||
+    window.localStorage.getItem('accessToken') ||
+    window.localStorage.getItem('token') ||
+    window.localStorage.getItem('web_token') ||
+    window.localStorage.getItem('jwt')
+  if (
+    candidate &&
+    typeof candidate === 'string' &&
+    candidate.trim() !== '' &&
+    candidate !== 'undefined' &&
+    candidate !== 'null'
+  ) {
+    return candidate.trim()
+  }
+  return null
+}
+
+function isPublicMarketingRoute(): boolean {
+  if (typeof window === 'undefined') return false
+  const path = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '')
+  return (
+    path === '' ||
+    path === '/' ||
+    path === '/login' ||
+    path.startsWith('/login/') ||
+    path === '/register' ||
+    path.startsWith('/register/') ||
+    path === '/signup' ||
+    path.startsWith('/signup/') ||
+    path === '/landing' ||
+    path.startsWith('/landing/')
+  )
+}
+
+function shouldShowWidget(dataset: DOMStringMap, globalCfg: any): boolean {
+  if (globalCfg.forceShow === true || dataset.forceShow === 'true') return true
+  if (globalCfg.forceHide === true || dataset.forceHide === 'true') return false
+
+  const requireAuth = dataset.requireAuth !== 'false' && globalCfg.requireAuth !== false
+  if (!requireAuth) return true
+
+  const token = getStoredAuthToken()
+  const isPublic = isPublicMarketingRoute()
+
+  // Standard enterprise SaaS rule:
+  // Must have an active auth token AND not be on a public landing/login route
+  if (!token) return false
+  if (isPublic) return false
+
+  return true
+}
+
 function initCtrlBooksWidget() {
   if (typeof document === 'undefined') return
 
@@ -80,8 +137,16 @@ function initCtrlBooksWidget() {
     resolvedApiUrl = 'http://210.56.147.234:8001/api/v1'
   }
 
+  const effectiveToken =
+    dataset.authToken ||
+    dataset.token ||
+    globalCfg.authToken ||
+    globalCfg.connectorToken ||
+    getStoredAuthToken()
+
   // Sync to window.CtrlBooksAI for API client and child components
-  (window as any).CtrlBooksAI = {
+  const win = window as any
+  win.CtrlBooksAI = {
     ...globalCfg,
     apiUrl: resolvedApiUrl,
     companyId: dataset.companyId || globalCfg.companyId,
@@ -90,7 +155,7 @@ function initCtrlBooksWidget() {
     userEmail: dataset.userEmail || globalCfg.userEmail,
     userPhone: dataset.userPhone || globalCfg.userPhone,
     tallyPort: dataset.tallyPort || globalCfg.tallyPort,
-    authToken: dataset.authToken || dataset.token || globalCfg.authToken || globalCfg.connectorToken,
+    authToken: effectiveToken,
     position: dataset.position || globalCfg.position,
   }
 
@@ -105,6 +170,10 @@ function initCtrlBooksWidget() {
   host.style.overflow = 'visible'
   host.style.zIndex = '2147483647'
   host.style.pointerEvents = 'none'
+
+  // SaaS Guard: Initially display only if user is authenticated and inside dashboard
+  const initialVisible = shouldShowWidget(dataset, win.CtrlBooksAI || {})
+  host.style.display = initialVisible ? 'block' : 'none'
 
   // 4. Attach Shadow DOM (Open mode)
   const shadowRoot = host.attachShadow({ mode: 'open' })
@@ -124,7 +193,46 @@ function initCtrlBooksWidget() {
   // 7. Append host to document body
   document.body.appendChild(host)
 
-  // 8. Mount React app inside Shadow DOM
+  // 8. Reactive Visibility Updater for SPA route transitions & Auth events
+  const updateVisibility = () => {
+    const isVisible = shouldShowWidget(dataset, win.CtrlBooksAI || {})
+    const targetDisplay = isVisible ? 'block' : 'none'
+    if (host.style.display !== targetDisplay) {
+      host.style.display = targetDisplay
+    }
+  }
+
+  window.addEventListener('popstate', updateVisibility)
+  window.addEventListener('storage', updateVisibility)
+  window.addEventListener('ctrlbooks:auth-changed', updateVisibility)
+  window.addEventListener('ctrlbooks:route-changed', updateVisibility)
+
+  try {
+    const originalPush = window.history.pushState
+    if (originalPush && !(originalPush as any).__ctrlbooksHooked) {
+      window.history.pushState = function (...args) {
+        const res = originalPush.apply(this, args)
+        updateVisibility()
+        return res
+      }
+      ;(window.history.pushState as any).__ctrlbooksHooked = true
+    }
+
+    const originalReplace = window.history.replaceState
+    if (originalReplace && !(originalReplace as any).__ctrlbooksHooked) {
+      window.history.replaceState = function (...args) {
+        const res = originalReplace.apply(this, args)
+        updateVisibility()
+        return res
+      }
+      ;(window.history.replaceState as any).__ctrlbooksHooked = true
+    }
+  } catch (e) {}
+
+  // Periodic heartbeat sync (every 600ms) to ensure guaranteed synchronization
+  setInterval(updateVisibility, 600)
+
+  // 9. Mount React app inside Shadow DOM
   const root = createRoot(mount)
   root.render(
     <CtrlBooksWidget
@@ -135,9 +243,15 @@ function initCtrlBooksWidget() {
       userEmail={dataset.userEmail || globalCfg.userEmail}
       userPhone={dataset.userPhone || globalCfg.userPhone}
       tallyPort={dataset.tallyPort ? Number(dataset.tallyPort) : (globalCfg.tallyPort ? Number(globalCfg.tallyPort) : undefined)}
-      authToken={dataset.authToken || dataset.token || globalCfg.authToken || globalCfg.connectorToken}
+      authToken={effectiveToken}
       positionClassName={dataset.position || globalCfg.position}
-      initialOpen={dataset.initialOpen !== undefined ? dataset.initialOpen === 'true' : globalCfg.initialOpen}
+      initialOpen={
+        dataset.initialOpen !== undefined
+          ? dataset.initialOpen === 'true'
+          : globalCfg.initialOpen !== undefined
+          ? Boolean(globalCfg.initialOpen)
+          : false
+      }
     />
   )
 }
