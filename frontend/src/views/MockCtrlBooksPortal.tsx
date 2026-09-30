@@ -316,6 +316,7 @@ export default function App({ currentUser }) {
       <CtrlBooksWidget
         initialOpen={true}
         companyName={selectedCompany}
+        forceShow={true}
       />
 
       {/* Embed Code Modal */}

@@ -48,8 +48,8 @@ export const getBaseUrl = (): string => {
       return '/api/v1'
     }
 
-    // 5. Automatic resolution for aiassistant.ctrlbooks.com or local port 3000
-    if (window.location.hostname === 'aiassistant.ctrlbooks.com' || window.location.hostname.endsWith('.ctrlbooks.com')) {
+    // 5. Automatic resolution for aiassistant.ctrlbooks.com
+    if (window.location.hostname === 'aiassistant.ctrlbooks.com') {
       return '/api/v1'
     }
 

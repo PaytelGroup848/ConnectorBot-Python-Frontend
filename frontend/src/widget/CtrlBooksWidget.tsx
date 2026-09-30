@@ -38,6 +38,9 @@ export interface CtrlBooksWidgetProps {
   authToken?: string
   apiUrl?: string
   positionClassName?: string
+  forceShow?: boolean
+  forceHide?: boolean
+  requireAuth?: boolean
   onVoucherCreated?: (voucher: QueueItem) => void
 }
 
@@ -52,6 +55,9 @@ export const CtrlBooksWidget = ({
   authToken,
   apiUrl,
   positionClassName,
+  forceShow,
+  forceHide,
+  requireAuth,
   onVoucherCreated,
 }: CtrlBooksWidgetProps) => {
   // Sync apiUrl if passed as prop
@@ -64,8 +70,15 @@ export const CtrlBooksWidget = ({
   const checkIsAllowed = () => {
     if (typeof window === 'undefined') return false
     const globalCfgObj = (window as any).CtrlBooksAI || {}
-    if (globalCfgObj.forceShow === true) return true
-    if (globalCfgObj.forceHide === true) return false
+    if (forceShow === true || globalCfgObj.forceShow === true) return true
+    if (forceHide === true || globalCfgObj.forceHide === true) return false
+    if (requireAuth === false || globalCfgObj.requireAuth === false) return true
+
+    // Internal preview & portal hosts: always show
+    const hostname = window.location.hostname || ''
+    if (hostname === 'aiassistant.ctrlbooks.com' || hostname === 'localhost' || hostname === '127.0.0.1') {
+      return true
+    }
 
     const token =
       authToken ||
