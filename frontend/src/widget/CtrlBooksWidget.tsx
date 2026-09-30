@@ -77,12 +77,19 @@ export const CtrlBooksWidget = ({
         undefined
       : undefined
 
-  const resolvedPosition =
+  const launcherPosition =
     positionClassName ||
     globalCfg.position ||
     (typeof document !== 'undefined' && document.querySelector('button[aria-label="Quick create"]')
-      ? 'bottom-5 right-24'
-      : 'bottom-6 right-6')
+      ? 'bottom-4 right-4 sm:bottom-5 sm:right-24'
+      : 'bottom-4 right-4 sm:bottom-6 sm:right-6')
+
+  const desktopPosition =
+    positionClassName ||
+    globalCfg.position ||
+    (typeof document !== 'undefined' && document.querySelector('button[aria-label="Quick create"]')
+      ? 'sm:bottom-5 sm:right-24'
+      : 'sm:bottom-6 sm:right-6')
 
   const resolvedCompany = companyName || globalCfg.companyName || 'CtrlBooks'
   const resolvedCompanyId = companyId || globalCfg.companyId || storedCompanyId || '6aa0f659f858467a84d08d57'
@@ -407,8 +414,16 @@ export const CtrlBooksWidget = ({
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
+  const isFullScreenMobile = isOpen && !isMinimized
+
   return (
-    <div className={`fixed ${resolvedPosition} z-99999 font-sans antialiased pointer-events-auto`}>
+    <div
+      className={`fixed ${
+        isFullScreenMobile
+          ? `inset-0 sm:inset-auto ${desktopPosition}`
+          : launcherPosition
+      } z-99999 font-sans antialiased pointer-events-auto`}
+    >
       {/* 1. Closed State: Floating Action Launcher Button */}
       {!isOpen && (
         <button
@@ -416,7 +431,7 @@ export const CtrlBooksWidget = ({
             setIsOpen(true)
             setIsMinimized(false)
           }}
-          className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xl hover:shadow-emerald-700/50 transition-all duration-300 hover:scale-105 active:scale-95"
+          className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white shadow-2xl hover:shadow-emerald-700/50 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
           title="Open CtrlBooks AI Assistant"
         >
           {/* Pulsing ring */}
@@ -426,7 +441,7 @@ export const CtrlBooksWidget = ({
           </div>
 
           {/* Tooltip badge */}
-          <div className="absolute right-16 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-lg pointer-events-none">
+          <div className="absolute right-16 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-lg pointer-events-none hidden sm:block">
             CtrlBooks AI Assistant
           </div>
         </button>
@@ -434,18 +449,18 @@ export const CtrlBooksWidget = ({
 
       {/* 2. Minimized State: Sleek Floating Pill Bar */}
       {isOpen && isMinimized && (
-        <div className="flex items-center gap-2.5 bg-linear-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white pl-3.5 pr-2 py-2 rounded-full shadow-2xl border border-white/20 select-none whitespace-nowrap">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 bg-linear-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white pl-3 pr-2 py-1.5 sm:py-2 rounded-full shadow-2xl border border-white/20 select-none whitespace-nowrap max-w-[calc(100vw-2rem)]">
           <button
             onClick={() => setIsMinimized(false)}
-            className="flex items-center gap-2 hover:opacity-90 transition text-left cursor-pointer"
+            className="flex items-center gap-1.5 sm:gap-2 hover:opacity-90 transition text-left cursor-pointer"
             title="Click to expand CtrlBooks AI"
           >
-            <div className="w-6 h-6 rounded-full bg-white/15 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/15 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
+              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-300" />
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5">
               <span className="font-bold text-xs tracking-tight">CtrlBooks AI</span>
-              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-200 border border-emerald-400/30">
+              <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 hidden xs:inline">
                 Assistant
               </span>
             </div>
@@ -455,7 +470,7 @@ export const CtrlBooksWidget = ({
             href="https://patwatoliai.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center space-x-1 text-[10px] font-semibold text-emerald-200/90 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded-full border border-white/20 transition-colors"
+            className="hidden md:inline-flex items-center space-x-1 text-[10px] font-semibold text-emerald-200/90 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded-full border border-white/20 transition-colors"
             title="Visit patwatoliai.com"
           >
             <span>by patwatoliai.com</span>
@@ -463,7 +478,7 @@ export const CtrlBooksWidget = ({
           </a>
 
           {/* Port Status */}
-          <div className="flex items-center space-x-1 text-[10.5px] text-emerald-100 pl-1 border-l border-white/20">
+          <div className="hidden sm:flex items-center space-x-1 text-[10.5px] text-emerald-100 pl-1 border-l border-white/20">
             {tallyStatus?.is_online && activePort ? (
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
@@ -472,7 +487,7 @@ export const CtrlBooksWidget = ({
             ) : (
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
-                <span>{activePort ? `Port ${activePort} Standby` : 'Tally: Auto-Detect'}</span>
+                <span>{activePort ? `Port ${activePort} Standby` : 'Tally: Auto'}</span>
               </>
             )}
           </div>
@@ -499,39 +514,39 @@ export const CtrlBooksWidget = ({
 
       {/* 3. Open State: Full Floating AI Assistant Window */}
       {isOpen && !isMinimized && (
-        <div className="flex flex-col bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden w-[95vw] sm:w-105 md:w-112.5 h-160 max-h-[calc(100vh-5rem)]">
+        <div className="flex flex-col bg-white overflow-hidden w-full h-[100dvh] max-h-[100dvh] rounded-none border-none sm:rounded-3xl sm:border sm:border-slate-200 sm:shadow-2xl sm:w-105 md:w-115 sm:h-160 sm:max-h-[calc(100vh-4rem)]">
           {/* Header */}
-          <div className="bg-linear-to-r from-emerald-800 via-emerald-700 to-teal-800 px-4 py-3 text-white flex items-center justify-between shrink-0 shadow-xs select-none">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center text-white border border-white/20">
-                <Sparkles className="w-4 h-4 text-emerald-300" />
+          <div className="bg-linear-to-r from-emerald-800 via-emerald-700 to-teal-800 px-3.5 sm:px-4 py-2.5 sm:py-3 text-white flex items-center justify-between shrink-0 shadow-xs select-none">
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center text-white border border-white/20 shrink-0">
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center space-x-1.5">
-                  <h3 className="font-bold text-sm tracking-tight leading-none whitespace-nowrap">CtrlBooks AI</h3>
-                  <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 whitespace-nowrap">
+                  <h3 className="font-bold text-xs sm:text-sm tracking-tight leading-none whitespace-nowrap">CtrlBooks AI</h3>
+                  <span className="text-[8.5px] sm:text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 whitespace-nowrap">
                     Assistant
                   </span>
                   <a
                     href="https://patwatoliai.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center space-x-1 text-[10px] font-semibold text-emerald-200/90 hover:text-white bg-white/10 hover:bg-white/20 px-1.5 py-0.5 rounded border border-white/20 transition-colors ml-1 whitespace-nowrap"
+                    className="hidden md:inline-flex items-center space-x-1 text-[10px] font-semibold text-emerald-200/90 hover:text-white bg-white/10 hover:bg-white/20 px-1.5 py-0.5 rounded border border-white/20 transition-colors ml-1 whitespace-nowrap"
                     title="Visit patwatoliai.com"
                   >
                     <span>by patwatoliai.com</span>
                     <ExternalLink className="w-2.5 h-2.5 opacity-80" />
                   </a>
                 </div>
-                <div className="flex items-center space-x-1 text-[11px] text-emerald-100 mt-0.5 whitespace-nowrap">
+                <div className="flex items-center space-x-1 text-[10px] sm:text-[11px] text-emerald-100 mt-0.5 whitespace-nowrap truncate">
                   {tallyStatus?.is_online && activePort ? (
                     <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse shrink-0"></span>
                       <span>Port {activePort} Online</span>
                     </>
                   ) : (
                     <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
                       <span>{activePort ? `Port ${activePort} Standby` : 'Tally Port: Auto-Detect'}</span>
                     </>
                   )}
@@ -540,26 +555,26 @@ export const CtrlBooksWidget = ({
             </div>
 
             {/* Window Controls */}
-            <div className="flex items-center space-x-1 shrink-0">
+            <div className="flex items-center space-x-0.5 sm:space-x-1 shrink-0">
               <button
                 onClick={handleNewChat}
                 title="Start New Chat (Nayi Chat)"
                 className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
               >
-                <PlusCircle className="w-3.5 h-3.5" />
+                <PlusCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               </button>
               <button
                 onClick={checkStatus}
                 disabled={isRefreshing}
                 title="Refresh Tally Status"
-                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer hidden xs:inline-flex"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </button>
               <button
                 onClick={() => setIsMinimized(true)}
                 title="Minimize"
-                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                className="p-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-white/10 transition cursor-pointer hidden sm:inline-flex"
               >
                 <Minus className="w-4 h-4" />
               </button>
@@ -633,19 +648,19 @@ export const CtrlBooksWidget = ({
             /* Live Assistant Chat View */
             <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/70">
               {/* Message List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
                 {/* Quick Suggestion Pills if fresh */}
                 {messages.length <= 1 && (
                   <div className="space-y-2 pt-2 pb-1">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
                       Quick Suggestions
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
                       {quickPills.map((pill, idx) => (
                         <button
                           key={idx}
                           onClick={() => handleSendMessage(pill.prompt)}
-                          className="text-left p-2.5 rounded-xl bg-white hover:bg-emerald-50/80 border border-slate-200 hover:border-emerald-300 text-[11px] text-slate-700 hover:text-emerald-800 transition font-medium shadow-2xs"
+                          className="text-left p-2 sm:p-2.5 rounded-xl bg-white hover:bg-emerald-50/80 border border-slate-200 hover:border-emerald-300 text-[11px] text-slate-700 hover:text-emerald-800 transition font-medium shadow-2xs cursor-pointer active:scale-[0.99]"
                         >
                           {pill.label}
                         </button>
@@ -800,10 +815,10 @@ export const CtrlBooksWidget = ({
               </div>
 
               {/* Bottom Input Form */}
-              <div className="p-3 bg-white border-t border-slate-200">
+              <div className="p-2.5 sm:p-3 bg-white border-t border-slate-200 shrink-0 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
                 <form
                   onSubmit={handleSubmit}
-                  className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition"
+                  className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-2xl p-1 sm:p-1.5 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition"
                 >
                   <VoiceRecorder
                     onAudioRecorded={handleSendVoice}
@@ -817,25 +832,27 @@ export const CtrlBooksWidget = ({
                     onChange={(e) => setInputText(e.target.value)}
                     disabled={isLoading || isVoiceProcessing}
                     placeholder="Ask or create voucher in Tally..."
-                    className="flex-1 bg-transparent px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none disabled:opacity-50"
+                    className="flex-1 bg-transparent px-2 sm:px-2.5 py-1.5 text-base sm:text-xs text-slate-800 placeholder-slate-400 focus:outline-none disabled:opacity-50"
                   />
 
                   <button
                     type="submit"
                     disabled={!inputText.trim() || isLoading || isVoiceProcessing}
-                    className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-40"
+                    className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-40 cursor-pointer active:scale-95 shrink-0"
                   >
                     <Send className="w-3.5 h-3.5" />
                   </button>
                 </form>
 
-                <div className="flex items-center justify-between text-[9.5px] text-slate-400 mt-2 px-1">
-                  <span>{activePort ? `Synced with Tally Port ${activePort} & Queue` : '2-Way Tally Queue Active (Auto-Detect Port)'}</span>
+                <div className="flex items-center justify-between text-[9px] sm:text-[9.5px] text-slate-400 mt-1.5 sm:mt-2 px-1">
+                  <span className="truncate pr-1">
+                    {activePort ? `Synced with Tally Port ${activePort}` : '2-Way Tally Queue Active'}
+                  </span>
                   <a
                     href="https://patwatoliai.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center space-x-1 font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors"
+                    className="inline-flex items-center space-x-1 font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors shrink-0"
                     title="Powered by patwatoliai.com"
                   >
                     <span>⚡ Powered by patwatoliai.com</span>
