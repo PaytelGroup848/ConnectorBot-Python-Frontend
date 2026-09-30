@@ -75,23 +75,6 @@ function getStoredAuthToken(): string | null {
   return null
 }
 
-function isPublicMarketingRoute(): boolean {
-  if (typeof window === 'undefined') return false
-  const path = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '')
-  return (
-    path === '' ||
-    path === '/' ||
-    path === '/login' ||
-    path.startsWith('/login/') ||
-    path === '/register' ||
-    path.startsWith('/register/') ||
-    path === '/signup' ||
-    path.startsWith('/signup/') ||
-    path === '/landing' ||
-    path.startsWith('/landing/')
-  )
-}
-
 function shouldShowWidget(dataset: DOMStringMap, globalCfg: any): boolean {
   if (globalCfg.forceShow === true || dataset.forceShow === 'true') return true
   if (globalCfg.forceHide === true || dataset.forceHide === 'true') return false
@@ -136,7 +119,7 @@ function initCtrlBooksWidget() {
     } catch (e) {}
   }
   if (!resolvedApiUrl) {
-    resolvedApiUrl = 'http://210.56.147.234:8001/api/v1'
+    resolvedApiUrl = 'https://aiassistant.ctrlbooks.com/api/v1'
   }
 
   const effectiveToken =

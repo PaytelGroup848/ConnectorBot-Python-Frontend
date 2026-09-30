@@ -691,8 +691,6 @@ export const CtrlBooksWidget = ({
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 
-  const isFullScreenMobile = isOpen && !isMinimized
-
   return (
     <>
       {/* 1. Closed State: Floating Action Launcher Button (Draggable) */}

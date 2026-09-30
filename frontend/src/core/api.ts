@@ -48,14 +48,18 @@ export const getBaseUrl = (): string => {
       return '/api/v1'
     }
 
-    // 5. Automatic resolution for Port 3000 -> Port 8001 on same host
+    // 5. Automatic resolution for aiassistant.ctrlbooks.com or local port 3000
+    if (window.location.hostname === 'aiassistant.ctrlbooks.com' || window.location.hostname.endsWith('.ctrlbooks.com')) {
+      return '/api/v1'
+    }
+
     if (window.location.port === '3000') {
       return `${window.location.protocol}//${window.location.hostname}:8001/api/v1`
     }
 
     // 6. External Host Fallback: default to official cloud backend if embedded on customer/host site
     if (isEmbeddedWidget) {
-      return 'http://210.56.147.234:8001/api/v1'
+      return 'https://aiassistant.ctrlbooks.com/api/v1'
     }
   }
   return '/api/v1'
