@@ -840,10 +840,8 @@ export const CtrlBooksWidget = ({
                 }
               : undefined
           }
-          className={`fixed ${
-            isFullScreenMobile ? 'inset-0 sm:inset-auto' : ''
-          } ${
-            !windowPos && !isFullScreenMobile ? desktopPosition : ''
+          className={`fixed inset-0 sm:inset-auto ${
+            !windowPos ? desktopPosition : ''
           } z-99999 font-sans antialiased pointer-events-auto`}
         >
           <div className="flex flex-col bg-white overflow-hidden w-full h-[100dvh] max-h-[100dvh] rounded-none border-none sm:rounded-3xl sm:border sm:border-slate-200 sm:shadow-2xl sm:w-105 md:w-115 sm:h-160 sm:max-h-[calc(100vh-4rem)]">
