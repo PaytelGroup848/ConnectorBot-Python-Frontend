@@ -20,7 +20,7 @@ function getScopedStyles(rawCss: string): string {
   const hostIsolationStyles = `
 :host {
   all: initial;
-  display: block !important;
+  display: block;
   position: fixed !important;
   bottom: 0 !important;
   right: 0 !important;
@@ -35,6 +35,10 @@ function getScopedStyles(rawCss: string): string {
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:host([hidden]), :host.ctrlbooks-hidden {
+  display: none !important;
 }
 
 :host *, :host *::before, :host *::after {
@@ -173,7 +177,14 @@ function initCtrlBooksWidget() {
 
   // SaaS Guard: Initially display only if user is authenticated and inside dashboard
   const initialVisible = shouldShowWidget(dataset, win.CtrlBooksAI || {})
-  host.style.display = initialVisible ? 'block' : 'none'
+  host.hidden = !initialVisible
+  if (!initialVisible) {
+    host.style.setProperty('display', 'none', 'important')
+    host.classList.add('ctrlbooks-hidden')
+  } else {
+    host.style.removeProperty('display')
+    host.classList.remove('ctrlbooks-hidden')
+  }
 
   // 4. Attach Shadow DOM (Open mode)
   const shadowRoot = host.attachShadow({ mode: 'open' })
@@ -196,9 +207,14 @@ function initCtrlBooksWidget() {
   // 8. Reactive Visibility Updater for SPA route transitions & Auth events
   const updateVisibility = () => {
     const isVisible = shouldShowWidget(dataset, win.CtrlBooksAI || {})
-    const targetDisplay = isVisible ? 'block' : 'none'
-    if (host.style.display !== targetDisplay) {
-      host.style.display = targetDisplay
+    if (isVisible) {
+      host.hidden = false
+      host.style.removeProperty('display')
+      host.classList.remove('ctrlbooks-hidden')
+    } else {
+      host.hidden = true
+      host.style.setProperty('display', 'none', 'important')
+      host.classList.add('ctrlbooks-hidden')
     }
   }
 

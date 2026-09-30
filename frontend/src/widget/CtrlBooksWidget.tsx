@@ -60,6 +60,76 @@ export const CtrlBooksWidget = ({
     ;(window as any).CtrlBooksAI.apiUrl = apiUrl
   }
 
+  // SaaS Gate: If user is not authenticated or on public landing/login route, return null (ZERO DOM, ZERO ICON)
+  const checkIsAllowed = () => {
+    if (typeof window === 'undefined') return false
+    const globalCfgObj = (window as any).CtrlBooksAI || {}
+    if (globalCfgObj.forceShow === true) return true
+    if (globalCfgObj.forceHide === true) return false
+
+    const token =
+      authToken ||
+      globalCfgObj.authToken ||
+      globalCfgObj.connectorToken ||
+      window.localStorage.getItem('accessToken') ||
+      window.localStorage.getItem('token') ||
+      window.localStorage.getItem('web_token') ||
+      window.localStorage.getItem('jwt')
+
+    const hasToken = Boolean(
+      token &&
+      typeof token === 'string' &&
+      token.trim() !== '' &&
+      token !== 'undefined' &&
+      token !== 'null'
+    )
+
+    const rawPath = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '')
+    const isPublic =
+      rawPath === '' ||
+      rawPath === '/' ||
+      rawPath === '/login' ||
+      rawPath.startsWith('/login/') ||
+      rawPath === '/register' ||
+      rawPath.startsWith('/register/') ||
+      rawPath === '/signup' ||
+      rawPath.startsWith('/signup/') ||
+      rawPath === '/landing' ||
+      rawPath.startsWith('/landing/')
+
+    if (!hasToken || isPublic) {
+      return false
+    }
+    return true
+  }
+
+  const [isAllowed, setIsAllowed] = useState(checkIsAllowed)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const updateAllowed = () => {
+      setIsAllowed(checkIsAllowed())
+    }
+
+    window.addEventListener('popstate', updateAllowed)
+    window.addEventListener('storage', updateAllowed)
+    window.addEventListener('ctrlbooks:auth-changed', updateAllowed)
+    window.addEventListener('ctrlbooks:route-changed', updateAllowed)
+
+    const interval = window.setInterval(updateAllowed, 500)
+    return () => {
+      window.removeEventListener('popstate', updateAllowed)
+      window.removeEventListener('storage', updateAllowed)
+      window.removeEventListener('ctrlbooks:auth-changed', updateAllowed)
+      window.removeEventListener('ctrlbooks:route-changed', updateAllowed)
+      window.clearInterval(interval)
+    }
+  }, [authToken])
+
+  if (!isAllowed) {
+    return null
+  }
+
   // Auto-resolve logged-in user identity, CompanyId, & Connector Web Token from props, window.CtrlBooksAI, or localStorage
   const globalCfg = typeof window !== 'undefined' ? (window as any).CtrlBooksAI || {} : {}
   const storedToken =
