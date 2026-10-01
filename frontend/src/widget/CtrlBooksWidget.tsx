@@ -41,6 +41,23 @@ export interface CtrlBooksWidgetProps {
   onVoucherCreated?: (voucher: QueueItem) => void
 }
 
+function isPublicMarketingRoute(): boolean {
+  if (typeof window === 'undefined') return false
+  const path = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '')
+  return (
+    path === '' ||
+    path === '/' ||
+    path === '/landing' ||
+    path.startsWith('/landing/') ||
+    path === '/login' ||
+    path.startsWith('/login/') ||
+    path === '/signup' ||
+    path.startsWith('/signup/') ||
+    path === '/register' ||
+    path.startsWith('/register/')
+  )
+}
+
 export const CtrlBooksWidget = ({
   initialOpen = false,
   companyName = 'CtrlBooks',
@@ -60,12 +77,18 @@ export const CtrlBooksWidget = ({
     ;(window as any).CtrlBooksAI.apiUrl = apiUrl
   }
 
-  // SaaS Gate: If user is not authenticated or on public landing/login route, return null (ZERO DOM, ZERO ICON)
+  // SaaS Gate: If user is on public landing/login route, return null (ZERO DOM, ZERO ICON)
   const checkIsAllowed = () => {
     if (typeof window === 'undefined') return false
     const globalCfgObj = (window as any).CtrlBooksAI || {}
-    if (globalCfgObj.forceShow === true) return true
     if (globalCfgObj.forceHide === true) return false
+    if (globalCfgObj.forceShow === true) return true
+
+    // Strict SaaS Rule: Always hide on public landing / marketing / login routes
+    if (isPublicMarketingRoute()) {
+      return false
+    }
+
     if (globalCfgObj.requireAuth === false) return true
 
     const host = window.location.hostname || ''

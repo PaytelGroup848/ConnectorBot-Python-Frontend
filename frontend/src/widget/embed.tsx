@@ -75,11 +75,33 @@ function getStoredAuthToken(): string | null {
   return null
 }
 
-function shouldShowWidget(dataset: DOMStringMap, globalCfg: any): boolean {
-  if (globalCfg.forceShow === true || dataset.forceShow === 'true') return true
-  if (globalCfg.forceHide === true || dataset.forceHide === 'true') return false
+function isPublicMarketingRoute(): boolean {
+  if (typeof window === 'undefined') return false
+  const path = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '')
+  return (
+    path === '' ||
+    path === '/' ||
+    path === '/landing' ||
+    path.startsWith('/landing/') ||
+    path === '/login' ||
+    path.startsWith('/login/') ||
+    path === '/signup' ||
+    path.startsWith('/signup/') ||
+    path === '/register' ||
+    path.startsWith('/register/')
+  )
+}
 
-  // Allow localhost / local development & admin portal to show widget
+function shouldShowWidget(dataset: DOMStringMap, globalCfg: any): boolean {
+  if (globalCfg.forceHide === true || dataset.forceHide === 'true') return false
+  if (globalCfg.forceShow === true || dataset.forceShow === 'true') return true
+
+  // Strict SaaS Rule: Always hide completely on public landing, marketing, and login routes
+  if (isPublicMarketingRoute()) {
+    return false
+  }
+
+  // Allow localhost / local development & admin portal to show widget inside app/dashboard
   if (typeof window !== 'undefined') {
     const host = window.location.hostname || ''
     if (host === 'localhost' || host === '127.0.0.1' || host === 'aiassistant.ctrlbooks.com') {
@@ -93,7 +115,7 @@ function shouldShowWidget(dataset: DOMStringMap, globalCfg: any): boolean {
   const token = getStoredAuthToken()
 
   // Standard enterprise SaaS rule:
-  // Must have an active auth token to show (guest / unauthenticated landing page visitors are hidden)
+  // Must have an active auth token to show inside the app
   if (!token) return false
 
   return true
