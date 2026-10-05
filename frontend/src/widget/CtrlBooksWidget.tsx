@@ -41,23 +41,6 @@ export interface CtrlBooksWidgetProps {
   onVoucherCreated?: (voucher: QueueItem) => void
 }
 
-function isPublicMarketingRoute(): boolean {
-  if (typeof window === 'undefined') return false
-  const path = (window.location.pathname || '').toLowerCase().replace(/\/+$/, '')
-  return (
-    path === '' ||
-    path === '/' ||
-    path === '/landing' ||
-    path.startsWith('/landing/') ||
-    path === '/login' ||
-    path.startsWith('/login/') ||
-    path === '/signup' ||
-    path.startsWith('/signup/') ||
-    path === '/register' ||
-    path.startsWith('/register/')
-  )
-}
-
 export const CtrlBooksWidget = ({
   initialOpen = false,
   companyName = 'CtrlBooks',
@@ -77,18 +60,12 @@ export const CtrlBooksWidget = ({
     ;(window as any).CtrlBooksAI.apiUrl = apiUrl
   }
 
-  // SaaS Gate: If user is on public landing/login route, return null (ZERO DOM, ZERO ICON)
+  // SaaS Gate: If user is not authenticated or on public landing/login route, return null (ZERO DOM, ZERO ICON)
   const checkIsAllowed = () => {
     if (typeof window === 'undefined') return false
     const globalCfgObj = (window as any).CtrlBooksAI || {}
-    if (globalCfgObj.forceHide === true) return false
     if (globalCfgObj.forceShow === true) return true
-
-    // Strict SaaS Rule: Always hide on public landing / marketing / login routes
-    if (isPublicMarketingRoute()) {
-      return false
-    }
-
+    if (globalCfgObj.forceHide === true) return false
     if (globalCfgObj.requireAuth === false) return true
 
     const host = window.location.hostname || ''
@@ -129,10 +106,21 @@ export const CtrlBooksWidget = ({
       setIsAllowed(checkIsAllowed())
     }
 
+    const handleCompanyChange = (e: any) => {
+      const newComp = e.detail?.companyName || (window as any).CtrlBooksAI?.companyName
+      if (newComp) {
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem(WIDGET_STORAGE_CONV_KEY)
+        }
+        setConversationId(undefined)
+      }
+    }
+
     window.addEventListener('popstate', updateAllowed)
     window.addEventListener('storage', updateAllowed)
     window.addEventListener('ctrlbooks:auth-changed', updateAllowed)
     window.addEventListener('ctrlbooks:route-changed', updateAllowed)
+    window.addEventListener('ctrlbooks:company-changed', handleCompanyChange)
 
     const interval = window.setInterval(updateAllowed, 500)
     return () => {
@@ -140,6 +128,7 @@ export const CtrlBooksWidget = ({
       window.removeEventListener('storage', updateAllowed)
       window.removeEventListener('ctrlbooks:auth-changed', updateAllowed)
       window.removeEventListener('ctrlbooks:route-changed', updateAllowed)
+      window.removeEventListener('ctrlbooks:company-changed', handleCompanyChange)
       window.clearInterval(interval)
     }
   }, [authToken])
@@ -579,14 +568,34 @@ export const CtrlBooksWidget = ({
     syncToLocal(withUser, conversationId)
     setIsLoading(true)
 
+    const latestCfg = typeof window !== 'undefined' ? (window as any).CtrlBooksAI || {} : {}
+    const activeCompanyName =
+      latestCfg.companyName ||
+      (typeof window !== 'undefined' ? window.localStorage.getItem('activeCompanyName') : null) ||
+      resolvedCompany ||
+      'CtrlBooks'
+    const activeCompanyId =
+      latestCfg.companyId ||
+      (typeof window !== 'undefined' ? window.localStorage.getItem('selectedCompanyId') || window.localStorage.getItem('companyId') : null) ||
+      resolvedCompanyId
+    const activeToken =
+      latestCfg.authToken ||
+      latestCfg.connectorToken ||
+      authToken ||
+      resolvedConnectorToken
+    const activeUserName = latestCfg.userName || resolvedUserName
+    const activeUserEmail = latestCfg.userEmail || resolvedUserEmail
+    const activeUserPhone = latestCfg.userPhone || resolvedUserPhone
+    const activeTallyPort = latestCfg.tallyPort ? Number(latestCfg.tallyPort) : resolvedTallyPort
+
     try {
-      const res = await api.sendChatMessage(text, conversationId, resolvedCompany, {
-        userName: resolvedUserName,
-        userEmail: resolvedUserEmail,
-        userPhone: resolvedUserPhone,
-        tallyPort: resolvedTallyPort,
-        companyId: resolvedCompanyId,
-        connectorToken: resolvedConnectorToken,
+      const res = await api.sendChatMessage(text, conversationId, activeCompanyName, {
+        userName: activeUserName,
+        userEmail: activeUserEmail,
+        userPhone: activeUserPhone,
+        tallyPort: activeTallyPort,
+        companyId: activeCompanyId,
+        connectorToken: activeToken,
       })
       const nextConvId = res.conversation_id || conversationId
       if (res.conversation_id) setConversationId(res.conversation_id)
