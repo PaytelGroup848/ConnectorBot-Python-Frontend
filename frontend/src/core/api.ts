@@ -47,36 +47,68 @@ const BASE_URL = {
 }
 
 let cachedAiSessionToken: string | null = null
+let cachedForUserEmail: string | null = null
+let cachedForConnectorToken: string | null = null
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('ctrlbooks:auth-changed', (e: any) => {
+    if (!e.detail?.isAuthenticated) {
+      cachedAiSessionToken = null
+      cachedForUserEmail = null
+      cachedForConnectorToken = null
+      try {
+        window.sessionStorage.removeItem('ctrlbooks_ai_session_token')
+      } catch (err) {}
+    }
+  })
+}
 
 export const api = {
+  // Clear session token explicitly
+  clearSession() {
+    cachedAiSessionToken = null
+    cachedForUserEmail = null
+    cachedForConnectorToken = null
+    if (typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.removeItem('ctrlbooks_ai_session_token')
+      } catch (err) {}
+    }
+  },
+
   // Resolve or exchange active authentication token for AI session
   async getAuthHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = {}
     if (typeof window === 'undefined') return headers
 
-    if (!cachedAiSessionToken) {
-      try {
-        cachedAiSessionToken = window.sessionStorage.getItem('ctrlbooks_ai_session_token')
-      } catch (e) {}
-    }
-
     const globalCfg = (window as any).CtrlBooksAI || {}
+    const currentEmail = globalCfg.userEmail || ''
     const connectorToken =
       globalCfg.authToken ||
       globalCfg.connectorToken ||
       window.localStorage.getItem('accessToken') ||
       window.localStorage.getItem('token') ||
       window.localStorage.getItem('web_token') ||
-      window.localStorage.getItem('jwt')
+      window.localStorage.getItem('jwt') ||
+      ''
 
-    const isGuestCached = (window as any).sessionStorage?.getItem('ctrlbooks_ai_session_is_guest') === 'true'
-
-    // If a real user token is available now, upgrade from previously cached guest session
-    if (connectorToken && connectorToken !== 'undefined' && connectorToken !== 'null' && connectorToken.trim() !== '' && isGuestCached) {
+    // If active user or token changed, invalidate cached session immediately
+    if (
+      cachedAiSessionToken &&
+      ((cachedForUserEmail && currentEmail && cachedForUserEmail !== currentEmail) ||
+        (cachedForConnectorToken && connectorToken && cachedForConnectorToken !== connectorToken))
+    ) {
       cachedAiSessionToken = null
+      cachedForUserEmail = null
+      cachedForConnectorToken = null
       try {
         window.sessionStorage.removeItem('ctrlbooks_ai_session_token')
-        window.sessionStorage.removeItem('ctrlbooks_ai_session_is_guest')
+      } catch (e) {}
+    }
+
+    if (!cachedAiSessionToken) {
+      try {
+        cachedAiSessionToken = window.sessionStorage.getItem('ctrlbooks_ai_session_token')
       } catch (e) {}
     }
 
@@ -100,9 +132,10 @@ export const api = {
           const exJson = await exchangeRes.json()
           if (exJson.data?.access_token) {
             cachedAiSessionToken = exJson.data.access_token
+            cachedForUserEmail = currentEmail
+            cachedForConnectorToken = connectorToken.trim()
             try {
               window.sessionStorage.setItem('ctrlbooks_ai_session_token', cachedAiSessionToken!)
-              window.sessionStorage.removeItem('ctrlbooks_ai_session_is_guest')
             } catch (e) {}
             headers['Authorization'] = `Bearer ${cachedAiSessionToken}`
             return headers
@@ -113,42 +146,7 @@ export const api = {
       // Fallback: send connector token directly in headers
       headers['Authorization'] = `Bearer ${connectorToken.trim()}`
       headers['X-Connector-Token'] = connectorToken.trim()
-      return headers
     }
-
-    // Auto guest session exchange for public/unauthenticated widget users
-    try {
-      let guestVisitorId = ''
-      try {
-        guestVisitorId = window.localStorage.getItem('ctrlbooks_guest_id') || ''
-        if (!guestVisitorId) {
-          guestVisitorId = 'gst_' + Math.random().toString(36).substring(2, 10)
-          window.localStorage.setItem('ctrlbooks_guest_id', guestVisitorId)
-        }
-      } catch (e) {}
-
-      const guestRes = await fetch(`${BASE_URL}/session/exchange`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connector_token: `guest_${guestVisitorId || 'visitor'}`,
-          email: globalCfg.userEmail || undefined,
-          name: globalCfg.userName || 'Guest Customer',
-        }),
-      })
-      if (guestRes.ok) {
-        const gJson = await guestRes.json()
-        if (gJson.data?.access_token) {
-          cachedAiSessionToken = gJson.data.access_token
-          try {
-            window.sessionStorage.setItem('ctrlbooks_ai_session_token', cachedAiSessionToken!)
-            window.sessionStorage.setItem('ctrlbooks_ai_session_is_guest', 'true')
-          } catch (e) {}
-          headers['Authorization'] = `Bearer ${cachedAiSessionToken}`
-          return headers
-        }
-      }
-    } catch (e) {}
 
     return headers
   },

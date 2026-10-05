@@ -106,10 +106,27 @@ export const CtrlBooksWidget = ({
       setIsAllowed(checkIsAllowed())
     }
 
+    const handleAuthChange = (e: any) => {
+      updateAllowed()
+      if (!e.detail?.isAuthenticated) {
+        setConversationId(undefined)
+        setMessages([defaultWelcomeMessage])
+        setTicketsList([])
+        if (typeof window !== 'undefined') {
+          try {
+            window.sessionStorage.removeItem('ctrlbooks_ai_session_token')
+          } catch (err) {}
+        }
+      }
+    }
+
     const handleCompanyChange = (e: any) => {
       const newComp = e.detail?.companyName || (window as any).CtrlBooksAI?.companyName
       if (newComp) {
         if (typeof window !== 'undefined') {
+          const raw = resolvedUserEmail || (window as any).CtrlBooksAI?.userEmail || 'guest'
+          const safe = String(raw).toLowerCase().replace(/[^a-z0-9_]/g, '_')
+          window.localStorage.removeItem(`ctrlbooks_widget_conv_${safe}`)
           window.localStorage.removeItem(WIDGET_STORAGE_CONV_KEY)
         }
         setConversationId(undefined)
@@ -118,7 +135,7 @@ export const CtrlBooksWidget = ({
 
     window.addEventListener('popstate', updateAllowed)
     window.addEventListener('storage', updateAllowed)
-    window.addEventListener('ctrlbooks:auth-changed', updateAllowed)
+    window.addEventListener('ctrlbooks:auth-changed', handleAuthChange)
     window.addEventListener('ctrlbooks:route-changed', updateAllowed)
     window.addEventListener('ctrlbooks:company-changed', handleCompanyChange)
 
@@ -126,7 +143,7 @@ export const CtrlBooksWidget = ({
     return () => {
       window.removeEventListener('popstate', updateAllowed)
       window.removeEventListener('storage', updateAllowed)
-      window.removeEventListener('ctrlbooks:auth-changed', updateAllowed)
+      window.removeEventListener('ctrlbooks:auth-changed', handleAuthChange)
       window.removeEventListener('ctrlbooks:route-changed', updateAllowed)
       window.removeEventListener('ctrlbooks:company-changed', handleCompanyChange)
       window.clearInterval(interval)
@@ -181,6 +198,13 @@ export const CtrlBooksWidget = ({
   const WIDGET_STORAGE_MSGS_KEY = 'ctrlbooks_widget_cached_messages'
   const STORAGE_LAUNCHER_POS_KEY = 'ctrlbooks_widget_launcher_pos'
   const STORAGE_WINDOW_POS_KEY = 'ctrlbooks_widget_window_pos'
+
+  const getScopedUserPrefix = () => {
+    const raw = resolvedUserEmail || (typeof window !== 'undefined' && (window as any).CtrlBooksAI?.userEmail) || 'guest'
+    return String(raw).toLowerCase().replace(/[^a-z0-9_]/g, '_')
+  }
+  const getScopedConvKey = () => `ctrlbooks_widget_conv_${getScopedUserPrefix()}`
+  const getScopedMsgsKey = () => `ctrlbooks_widget_msgs_${getScopedUserPrefix()}`
 
   interface WidgetPosition {
     x: number
@@ -409,7 +433,9 @@ export const CtrlBooksWidget = ({
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const cached = window.localStorage.getItem(WIDGET_STORAGE_MSGS_KEY)
+        const raw = userEmail || ((window as any).CtrlBooksAI?.userEmail) || 'guest'
+        const safe = String(raw).toLowerCase().replace(/[^a-z0-9_]/g, '_')
+        const cached = window.localStorage.getItem(`ctrlbooks_widget_msgs_${safe}`)
         if (cached) {
           const parsed = JSON.parse(cached)
           if (Array.isArray(parsed) && parsed.length > 0) return parsed
@@ -424,7 +450,9 @@ export const CtrlBooksWidget = ({
   const [tallyStatus, setTallyStatus] = useState<TallyStatus | null>(null)
   const [conversationId, setConversationId] = useState<string | undefined>(() => {
     if (typeof window !== 'undefined') {
-      return window.localStorage.getItem(WIDGET_STORAGE_CONV_KEY) || undefined
+      const raw = userEmail || ((window as any).CtrlBooksAI?.userEmail) || 'guest'
+      const safe = String(raw).toLowerCase().replace(/[^a-z0-9_]/g, '_')
+      return window.localStorage.getItem(`ctrlbooks_widget_conv_${safe}`) || undefined
     }
     return undefined
   })
@@ -477,8 +505,8 @@ export const CtrlBooksWidget = ({
   const syncToLocal = (newMsgs: ChatMessage[], newConvId?: string) => {
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage.setItem(WIDGET_STORAGE_MSGS_KEY, JSON.stringify(newMsgs))
-        if (newConvId) window.localStorage.setItem(WIDGET_STORAGE_CONV_KEY, newConvId)
+        window.localStorage.setItem(getScopedMsgsKey(), JSON.stringify(newMsgs))
+        if (newConvId) window.localStorage.setItem(getScopedConvKey(), newConvId)
       } catch (e) {
         console.warn('Failed to sync widget state locally', e)
       }
@@ -497,8 +525,8 @@ export const CtrlBooksWidget = ({
     ]
     setMessages(freshWelcome)
     if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(WIDGET_STORAGE_CONV_KEY)
-      window.localStorage.setItem(WIDGET_STORAGE_MSGS_KEY, JSON.stringify(freshWelcome))
+      window.localStorage.removeItem(getScopedConvKey())
+      window.localStorage.setItem(getScopedMsgsKey(), JSON.stringify(freshWelcome))
     }
   }
 
@@ -519,7 +547,7 @@ export const CtrlBooksWidget = ({
     let isCancelled = false
     const restoreFromDatabase = async () => {
       try {
-        const savedId = conversationId || (typeof window !== 'undefined' ? window.localStorage.getItem(WIDGET_STORAGE_CONV_KEY) : null)
+        const savedId = conversationId || (typeof window !== 'undefined' ? window.localStorage.getItem(getScopedConvKey()) : null)
         if (savedId) {
           const detail = await api.fetchConversation(savedId)
           if (!isCancelled && detail && detail.messages && detail.messages.length > 0) {
