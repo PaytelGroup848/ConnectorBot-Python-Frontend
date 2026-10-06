@@ -99,13 +99,6 @@ export const CtrlBooksWidget = ({
         if (detected.name && detected.name !== 'CtrlBooks') {
           setActiveCompanyInfo((prev) => {
             if (prev.name !== detected.name || prev.id !== detected.id) {
-              if (typeof window !== 'undefined') {
-                ;(window as any).CtrlBooksAI = {
-                  ...((window as any).CtrlBooksAI || {}),
-                  companyName: detected.name,
-                  companyId: detected.id || ((window as any).CtrlBooksAI?.companyId),
-                }
-              }
               return detected
             }
             return prev
@@ -115,7 +108,7 @@ export const CtrlBooksWidget = ({
     }
 
     syncCompany()
-    timer = window.setInterval(syncCompany, 1000)
+    timer = window.setInterval(syncCompany, 600)
 
     const handleCustomChange = (e: any) => {
       if (e.detail?.companyName) {
@@ -128,13 +121,20 @@ export const CtrlBooksWidget = ({
       }
     }
 
+    const handleUserInteraction = () => {
+      setTimeout(syncCompany, 150)
+      setTimeout(syncCompany, 500)
+    }
+
     window.addEventListener('ctrlbooks:company-changed', handleCustomChange)
     window.addEventListener('storage', syncCompany)
+    window.addEventListener('click', handleUserInteraction)
 
     return () => {
       window.clearInterval(timer)
       window.removeEventListener('ctrlbooks:company-changed', handleCustomChange)
       window.removeEventListener('storage', syncCompany)
+      window.removeEventListener('click', handleUserInteraction)
     }
   }, [])
 
