@@ -58,6 +58,7 @@ if (typeof window !== 'undefined') {
       cachedForConnectorToken = null
       try {
         window.sessionStorage.removeItem('ctrlbooks_ai_session_token')
+        window.localStorage.removeItem('ctrlbooks_admin_token')
       } catch (err) {}
     }
   })
@@ -72,6 +73,7 @@ export const api = {
     if (typeof window !== 'undefined') {
       try {
         window.sessionStorage.removeItem('ctrlbooks_ai_session_token')
+        window.localStorage.removeItem('ctrlbooks_admin_token')
       } catch (err) {}
     }
   },
@@ -80,6 +82,13 @@ export const api = {
   async getAuthHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = {}
     if (typeof window === 'undefined') return headers
+
+    // 1. Prioritize active Admin Console session token
+    const adminToken = window.localStorage.getItem('ctrlbooks_admin_token')
+    if (adminToken && adminToken !== 'undefined' && adminToken !== 'null' && adminToken.trim() !== '') {
+      headers['Authorization'] = `Bearer ${adminToken.trim()}`
+      return headers
+    }
 
     const globalCfg = (window as any).CtrlBooksAI || {}
     const currentEmail = globalCfg.userEmail || ''
