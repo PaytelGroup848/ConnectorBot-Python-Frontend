@@ -151,7 +151,7 @@ export const CtrlBooksWidget = ({
     undefined
   const resolvedConnectorToken = authToken || globalCfg.connectorToken || globalCfg.authToken || storedToken
   const resolvedUserName = userName || globalCfg.userName || 'Authorized User'
-  const resolvedUserEmail = userEmail || globalCfg.userEmail || 'user@ctrlbooks.com'
+  const resolvedUserEmail = userEmail || globalCfg.userEmail || ''
   const resolvedUserPhone = userPhone || globalCfg.userPhone || 'Session Verified'
   const resolvedTallyPort: number | undefined = tallyPort || (globalCfg.tallyPort ? Number(globalCfg.tallyPort) : undefined)
 
@@ -246,7 +246,11 @@ export const CtrlBooksWidget = ({
   const loadCustomerTickets = async () => {
     setTicketsLoading(true)
     try {
-      const list = await api.fetchCustomerTickets(resolvedUserEmail)
+      if (!resolvedUserEmail && !resolvedConnectorToken) {
+        setTicketsList([])
+        return
+      }
+      const list = await api.fetchCustomerTickets(resolvedUserEmail, resolvedCompany)
       setTicketsList(list || [])
     } catch (err) {
       console.error('Failed to load tickets in widget:', err)

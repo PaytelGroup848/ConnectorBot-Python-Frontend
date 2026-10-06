@@ -382,9 +382,12 @@ export const api = {
     return json.data?.items || []
   },
 
-  async fetchCustomerTickets(userEmail?: string): Promise<any[]> {
+  async fetchCustomerTickets(userEmail?: string, companyName?: string): Promise<any[]> {
     const authHeaders = await this.getAuthHeaders({ isAdmin: false })
-    const qs = userEmail && userEmail.trim() ? `?user_email=${encodeURIComponent(userEmail.trim())}` : ''
+    const sp = new URLSearchParams()
+    if (userEmail && userEmail.trim()) sp.append('user_email', userEmail.trim())
+    if (companyName && companyName.trim()) sp.append('company_name', companyName.trim())
+    const qs = sp.toString() ? `?${sp.toString()}` : ''
     const res = await fetch(`${BASE_URL}/tickets${qs}`, {
       headers: { ...authHeaders },
     })
@@ -393,8 +396,8 @@ export const api = {
     return json.data?.items || []
   },
 
-  async fetchTickets(userEmail?: string): Promise<any[]> {
-    return this.fetchCustomerTickets(userEmail)
+  async fetchTickets(userEmail?: string, companyName?: string): Promise<any[]> {
+    return this.fetchCustomerTickets(userEmail, companyName)
   },
 
   async closeTicket(ticketId: string): Promise<any> {
