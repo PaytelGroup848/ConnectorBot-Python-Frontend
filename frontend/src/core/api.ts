@@ -476,4 +476,58 @@ export const api = {
     }
     return json.data
   },
+
+  // 11. My Entry Command Queue & Tally GST Verification
+  async fetchMyEntries(
+    companyId: string,
+    params?: {
+      type?: string
+      voucherType?: string
+      status?: string
+      q?: string
+      page?: number
+      limit?: number
+    }
+  ): Promise<any> {
+    const authHeaders = await this.getAuthHeaders()
+    const sp = new URLSearchParams()
+    if (params?.type) sp.append('type', params.type)
+    if (params?.voucherType) sp.append('voucherType', params.voucherType)
+    if (params?.status) sp.append('status', params.status)
+    if (params?.q) sp.append('q', params.q)
+    if (params?.page) sp.append('page', String(params.page))
+    if (params?.limit) sp.append('limit', String(params.limit))
+    const qs = sp.toString() ? `?${sp.toString()}` : ''
+
+    const res = await fetch(`${BASE_URL}/connector/companies/${companyId}/commands${qs}`, {
+      headers: { ...authHeaders },
+    })
+    if (!res.ok) return { success: false, items: [], total: 0 }
+    const json = await res.json()
+    return json.data || { success: false, items: [], total: 0 }
+  },
+
+  async deleteMyEntry(companyId: string, commandId: string): Promise<any> {
+    const authHeaders = await this.getAuthHeaders()
+    const res = await fetch(`${BASE_URL}/connector/companies/${companyId}/commands/${commandId}`, {
+      method: 'DELETE',
+      headers: { ...authHeaders },
+    })
+    if (!res.ok) return { success: false, message: 'Delete failed' }
+    const json = await res.json()
+    return json.data || { success: true }
+  },
+
+  async verifyGstin(gstin: string): Promise<any> {
+    const authHeaders = await this.getAuthHeaders()
+    const res = await fetch(`${BASE_URL}/connector/gstin/verify`, {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gstin }),
+    })
+    if (!res.ok) return { success: false, is_valid: false }
+    const json = await res.json()
+    return json.data || { success: false, is_valid: false }
+  },
 }
+
