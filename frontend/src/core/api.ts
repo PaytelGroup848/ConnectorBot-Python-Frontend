@@ -386,11 +386,12 @@ export const api = {
     return json.data?.items || []
   },
 
-  async fetchCustomerTickets(userEmail?: string, companyName?: string): Promise<any[]> {
+  async fetchCustomerTickets(userEmail?: string, companyName?: string, conversationId?: string): Promise<any[]> {
     const authHeaders = await this.getAuthHeaders({ isAdmin: false })
     const sp = new URLSearchParams()
     if (userEmail && userEmail.trim()) sp.append('user_email', userEmail.trim())
     if (companyName && companyName.trim()) sp.append('company_name', companyName.trim())
+    if (conversationId && conversationId.trim()) sp.append('conversation_id', conversationId.trim())
     const qs = sp.toString() ? `?${sp.toString()}` : ''
     const res = await fetch(`${BASE_URL}/tickets${qs}`, {
       headers: { ...authHeaders },

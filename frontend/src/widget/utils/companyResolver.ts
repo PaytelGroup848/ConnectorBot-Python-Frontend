@@ -47,8 +47,9 @@ export function detectActiveCompanyFromDOM(
       'header, nav, [class*="header"], [class*="navbar"], [class*="topbar"], button, [role="button"], select, div, span, a'
     )
   ).filter((el) => {
-    // Ignore anything inside our own widget shadow host
+    // Ignore anything inside our own widget shadow host or sidebar navigation
     if (hostWidget && hostWidget.contains(el)) return false
+    if (el.closest('aside, [class*="sidebar"]')) return false
     try {
       const r = el.getBoundingClientRect()
       return r.top >= 0 && r.top <= 140 && r.height > 0 && r.width > 0 && r.width <= 600
@@ -89,7 +90,12 @@ export function detectActiveCompanyFromDOM(
   for (const el of allHostElements) {
     const rawText = (el.textContent || '').trim()
     if (!rawText || rawText.length < 3 || rawText.length > 60) continue
-    if (/^(dashboard|menu|home|help|support|logout|notifications?|profile|settings?)$/i.test(rawText)) {
+    const stripped = rawText.replace(/[+>▼⌄▾\s]+/g, ' ').trim()
+    if (
+      /^(dashboard|create\s*vouchers?|sales|purchase|cash\s*&\s*bank|collect\s*payments?|parties|items|reports?|my\s*entries|vouchers?|ledgers?|gst\s*search|my\s*eway\s*bill|need\s*help|menu|home|help|support|logout|notifications?|profile|settings?)$/i.test(
+        stripped
+      )
+    ) {
       continue
     }
 

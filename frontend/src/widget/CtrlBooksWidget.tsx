@@ -31,6 +31,33 @@ export interface CtrlBooksWidgetProps {
   onVoucherCreated?: (voucher: QueueItem) => void
 }
 
+function detectUserEmailFromStorage(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    const directKeys = ['userEmail', 'email', 'user_email']
+    for (const k of directKeys) {
+      const v = window.localStorage.getItem(k)
+      if (v && v.includes('@')) return v.trim()
+    }
+    const candidateKeys = ['user', 'profile', 'currentUser', 'current_user', 'auth', 'userInfo', 'auth_user']
+    for (const key of candidateKeys) {
+      const item = window.localStorage.getItem(key)
+      if (item) {
+        try {
+          const parsed = JSON.parse(item)
+          if (parsed && typeof parsed === 'object') {
+            const possibleEmail = parsed.email || parsed.userEmail || parsed.mail || (parsed.user && parsed.user.email)
+            if (typeof possibleEmail === 'string' && possibleEmail.includes('@')) {
+              return possibleEmail.trim()
+            }
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+  return ''
+}
+
 export const CtrlBooksWidget = ({
   initialOpen = false,
   companyName = 'CtrlBooks',
@@ -151,7 +178,7 @@ export const CtrlBooksWidget = ({
     undefined
   const resolvedConnectorToken = authToken || globalCfg.connectorToken || globalCfg.authToken || storedToken
   const resolvedUserName = userName || globalCfg.userName || 'Authorized User'
-  const resolvedUserEmail = userEmail || globalCfg.userEmail || ''
+  const resolvedUserEmail = userEmail || globalCfg.userEmail || detectUserEmailFromStorage() || ''
   const resolvedUserPhone = userPhone || globalCfg.userPhone || 'Session Verified'
   const resolvedTallyPort: number | undefined = tallyPort || (globalCfg.tallyPort ? Number(globalCfg.tallyPort) : undefined)
 
@@ -246,11 +273,13 @@ export const CtrlBooksWidget = ({
   const loadCustomerTickets = async () => {
     setTicketsLoading(true)
     try {
-      if (!resolvedUserEmail && !resolvedConnectorToken) {
+      const currentEmail = resolvedUserEmail || detectUserEmailFromStorage() || ''
+      const currentConvId = conversationId || (typeof window !== 'undefined' ? window.localStorage.getItem(getScopedConvKey()) || undefined : undefined)
+      if (!currentEmail && !currentConvId && !resolvedConnectorToken) {
         setTicketsList([])
         return
       }
-      const list = await api.fetchCustomerTickets(resolvedUserEmail, resolvedCompany)
+      const list = await api.fetchCustomerTickets(currentEmail, resolvedCompany, currentConvId)
       setTicketsList(list || [])
     } catch (err) {
       console.error('Failed to load tickets in widget:', err)
@@ -353,7 +382,7 @@ export const CtrlBooksWidget = ({
   useEffect(() => {
     checkStatus()
     loadCustomerTickets()
-  }, [resolvedCompany, resolvedTallyPort])
+  }, [resolvedCompany, resolvedTallyPort, conversationId])
 
   useEffect(() => {
     if (isOpen && !isMinimized) {
