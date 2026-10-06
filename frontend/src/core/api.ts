@@ -529,5 +529,29 @@ export const api = {
     const json = await res.json()
     return json.data || { success: false, is_valid: false }
   },
+
+  // 12. Parties & Customer/Supplier Module (GET /companies/:id/parties)
+  async fetchParties(
+    companyId: string,
+    params?: {
+      page?: number
+      limit?: number
+      q?: string
+    }
+  ): Promise<any> {
+    const authHeaders = await this.getAuthHeaders()
+    const sp = new URLSearchParams()
+    if (params?.page) sp.append('page', String(params.page))
+    if (params?.limit) sp.append('limit', String(params.limit))
+    if (params?.q) sp.append('q', params.q)
+    const qs = sp.toString() ? `?${sp.toString()}` : ''
+
+    const res = await fetch(`${BASE_URL}/connector/companies/${companyId}/parties${qs}`, {
+      headers: { ...authHeaders },
+    })
+    if (!res.ok) return { success: false, items: [], total: 0 }
+    const json = await res.json()
+    return json.data || { success: false, items: [], total: 0 }
+  },
 }
 
