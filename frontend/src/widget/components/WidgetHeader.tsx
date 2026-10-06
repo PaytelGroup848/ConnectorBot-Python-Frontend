@@ -7,6 +7,7 @@ interface WidgetHeaderProps {
   resetWindowPos: () => void
   tallyStatus: TallyStatus | null
   activePort: number | null
+  activeCompany?: string
   handleNewChat: () => void
   checkStatus: () => Promise<void>
   isRefreshing: boolean
@@ -19,6 +20,7 @@ export const WidgetHeader: React.FC<WidgetHeaderProps> = ({
   resetWindowPos,
   tallyStatus,
   activePort,
+  activeCompany,
   handleNewChat,
   checkStatus,
   isRefreshing,
@@ -53,7 +55,15 @@ export const WidgetHeader: React.FC<WidgetHeaderProps> = ({
               <ExternalLink className="w-2.5 h-2.5 opacity-80" />
             </a>
           </div>
-          <div className="flex items-center space-x-1 text-[10px] sm:text-[11px] text-emerald-100 mt-0.5 whitespace-nowrap truncate">
+          <div className="flex items-center space-x-1.5 text-[10px] sm:text-[11px] text-emerald-100 mt-0.5 whitespace-nowrap truncate">
+            {activeCompany && !['ctrlbooks', 'default', 'your company', 'connected company'].includes(activeCompany.toLowerCase().trim()) && (
+              <>
+                <span className="font-semibold text-emerald-200 truncate max-w-[120px] sm:max-w-[160px]" title={activeCompany}>
+                  {activeCompany}
+                </span>
+                <span className="opacity-60">•</span>
+              </>
+            )}
             {tallyStatus?.is_online && activePort ? (
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse shrink-0"></span>

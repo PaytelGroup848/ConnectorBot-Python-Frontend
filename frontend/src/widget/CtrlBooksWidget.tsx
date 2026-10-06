@@ -10,6 +10,10 @@ import { WidgetLauncher } from './components/WidgetLauncher'
 import { WidgetHeader } from './components/WidgetHeader'
 import { WidgetInputBar } from './components/WidgetInputBar'
 import { WidgetMessageItem } from './components/WidgetMessageItem'
+import {
+  getConnectedCompanies,
+  resolveCurrentActiveCompany,
+} from './utils/companyResolver'
 
 export interface CtrlBooksWidgetProps {
   initialOpen?: boolean
@@ -80,8 +84,71 @@ export const CtrlBooksWidget = ({
       ? 'sm:bottom-5 sm:right-24'
       : 'sm:bottom-6 sm:right-6')
 
-  const resolvedCompany = companyName || globalCfg.companyName || 'CtrlBooks'
-  const resolvedCompanyId = companyId || globalCfg.companyId || storedCompanyId || '6aa0f659f858467a84d08d57'
+  // Dynamic host company discovery & synchronization state
+  const [activeCompanyInfo, setActiveCompanyInfo] = useState<{ name: string; id?: string }>(() => {
+    return resolveCurrentActiveCompany()
+  })
+
+  // Synchronize company changes dynamically across DOM, storage, and custom events
+  useEffect(() => {
+    let timer: number
+    const syncCompany = async () => {
+      try {
+        const companies = await getConnectedCompanies()
+        const detected = resolveCurrentActiveCompany(companies)
+        if (detected.name && detected.name !== 'CtrlBooks') {
+          setActiveCompanyInfo((prev) => {
+            if (prev.name !== detected.name || prev.id !== detected.id) {
+              if (typeof window !== 'undefined') {
+                ;(window as any).CtrlBooksAI = {
+                  ...((window as any).CtrlBooksAI || {}),
+                  companyName: detected.name,
+                  companyId: detected.id || ((window as any).CtrlBooksAI?.companyId),
+                }
+              }
+              return detected
+            }
+            return prev
+          })
+        }
+      } catch (err) {}
+    }
+
+    syncCompany()
+    timer = window.setInterval(syncCompany, 1000)
+
+    const handleCustomChange = (e: any) => {
+      if (e.detail?.companyName) {
+        setActiveCompanyInfo({
+          name: e.detail.companyName,
+          id: e.detail.companyId,
+        })
+      } else {
+        syncCompany()
+      }
+    }
+
+    window.addEventListener('ctrlbooks:company-changed', handleCustomChange)
+    window.addEventListener('storage', syncCompany)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('ctrlbooks:company-changed', handleCustomChange)
+      window.removeEventListener('storage', syncCompany)
+    }
+  }, [])
+
+  const resolvedCompany =
+    (activeCompanyInfo.name && activeCompanyInfo.name !== 'CtrlBooks')
+      ? activeCompanyInfo.name
+      : (companyName !== 'CtrlBooks' ? companyName : (globalCfg.companyName || 'CtrlBooks'))
+
+  const resolvedCompanyId =
+    activeCompanyInfo.id ||
+    companyId ||
+    globalCfg.companyId ||
+    storedCompanyId ||
+    undefined
   const resolvedConnectorToken = authToken || globalCfg.connectorToken || globalCfg.authToken || storedToken
   const resolvedUserName = userName || globalCfg.userName || 'Authorized User'
   const resolvedUserEmail = userEmail || globalCfg.userEmail || 'user@ctrlbooks.com'
@@ -303,15 +370,19 @@ export const CtrlBooksWidget = ({
     setIsLoading(true)
 
     const latestCfg = typeof window !== 'undefined' ? (window as any).CtrlBooksAI || {} : {}
-    const activeCompanyName =
-      latestCfg.companyName ||
-      (typeof window !== 'undefined' ? window.localStorage.getItem('activeCompanyName') : null) ||
-      resolvedCompany ||
-      'CtrlBooks'
-    const activeCompanyId =
-      latestCfg.companyId ||
-      (typeof window !== 'undefined' ? window.localStorage.getItem('selectedCompanyId') || window.localStorage.getItem('companyId') : null) ||
-      resolvedCompanyId
+    let currentCompName = resolvedCompany
+    let currentCompId = resolvedCompanyId
+    try {
+      const latestCompanies = await getConnectedCompanies()
+      const detected = resolveCurrentActiveCompany(latestCompanies)
+      if (detected.name && detected.name !== 'CtrlBooks') {
+        currentCompName = detected.name
+        if (detected.id) currentCompId = detected.id
+      }
+    } catch (e) {}
+
+    const activeCompanyName = currentCompName || latestCfg.companyName || 'CtrlBooks'
+    const activeCompanyId = currentCompId || latestCfg.companyId || undefined
     const activeToken =
       latestCfg.authToken ||
       latestCfg.connectorToken ||
@@ -509,6 +580,7 @@ export const CtrlBooksWidget = ({
               resetWindowPos={resetWindowPos}
               tallyStatus={tallyStatus}
               activePort={activePort}
+              activeCompany={resolvedCompany}
               handleNewChat={handleNewChat}
               checkStatus={checkStatus}
               isRefreshing={isRefreshing}

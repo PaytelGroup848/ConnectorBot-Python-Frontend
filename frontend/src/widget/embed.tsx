@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import { CtrlBooksWidget } from './CtrlBooksWidget'
+import { resolveCurrentActiveCompany } from './utils/companyResolver'
 import rawStyles from '../index.css?inline'
 
 function getScopedStyles(rawCss: string): string {
@@ -159,13 +160,23 @@ function initCtrlBooksWidget() {
     globalCfg.connectorToken ||
     getStoredAuthToken()
 
+  const detectedComp = resolveCurrentActiveCompany()
+  const initialCompany =
+    dataset.companyName ||
+    globalCfg.companyName ||
+    (detectedComp.name && detectedComp.name !== 'CtrlBooks' ? detectedComp.name : undefined)
+  const initialCompanyId =
+    dataset.companyId ||
+    globalCfg.companyId ||
+    detectedComp.id
+
   // Sync to window.CtrlBooksAI for API client and child components
   const win = window as any
   win.CtrlBooksAI = {
     ...globalCfg,
     apiUrl: resolvedApiUrl,
-    companyId: dataset.companyId || globalCfg.companyId,
-    companyName: dataset.companyName || globalCfg.companyName,
+    companyId: initialCompanyId,
+    companyName: initialCompany,
     userName: dataset.userName || globalCfg.userName,
     userEmail: dataset.userEmail || globalCfg.userEmail,
     userPhone: dataset.userPhone || globalCfg.userPhone,
@@ -264,8 +275,8 @@ function initCtrlBooksWidget() {
   root.render(
     <CtrlBooksWidget
       apiUrl={resolvedApiUrl}
-      companyId={dataset.companyId || globalCfg.companyId}
-      companyName={dataset.companyName || globalCfg.companyName}
+      companyId={initialCompanyId}
+      companyName={initialCompany}
       userName={dataset.userName || globalCfg.userName}
       userEmail={dataset.userEmail || globalCfg.userEmail}
       userPhone={dataset.userPhone || globalCfg.userPhone}
