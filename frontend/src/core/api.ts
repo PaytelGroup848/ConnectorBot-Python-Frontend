@@ -79,15 +79,17 @@ export const api = {
   },
 
   // Resolve or exchange active authentication token for AI session
-  async getAuthHeaders(): Promise<Record<string, string>> {
+  async getAuthHeaders(options?: { isAdmin?: boolean }): Promise<Record<string, string>> {
     const headers: Record<string, string> = {}
     if (typeof window === 'undefined') return headers
 
-    // 1. Prioritize active Admin Console session token
-    const adminToken = window.localStorage.getItem('ctrlbooks_admin_token')
-    if (adminToken && adminToken !== 'undefined' && adminToken !== 'null' && adminToken.trim() !== '') {
-      headers['Authorization'] = `Bearer ${adminToken.trim()}`
-      return headers
+    // 1. Only use Admin Console session token if explicitly requested by Admin operations
+    if (options?.isAdmin) {
+      const adminToken = window.localStorage.getItem('ctrlbooks_admin_token')
+      if (adminToken && adminToken !== 'undefined' && adminToken !== 'null' && adminToken.trim() !== '') {
+        headers['Authorization'] = `Bearer ${adminToken.trim()}`
+        return headers
+      }
     }
 
     const globalCfg = (window as any).CtrlBooksAI || {}
@@ -370,8 +372,8 @@ export const api = {
   },
 
   // 8. Enterprise Support Tickets Queue & Engineer Actions
-  async fetchTickets(): Promise<any[]> {
-    const authHeaders = await this.getAuthHeaders()
+  async fetchAdminTickets(): Promise<any[]> {
+    const authHeaders = await this.getAuthHeaders({ isAdmin: true })
     const res = await fetch(`${BASE_URL}/tickets`, {
       headers: { ...authHeaders },
     })
@@ -380,8 +382,23 @@ export const api = {
     return json.data?.items || []
   },
 
+  async fetchCustomerTickets(userEmail?: string): Promise<any[]> {
+    const authHeaders = await this.getAuthHeaders({ isAdmin: false })
+    const qs = userEmail && userEmail.trim() ? `?user_email=${encodeURIComponent(userEmail.trim())}` : ''
+    const res = await fetch(`${BASE_URL}/tickets${qs}`, {
+      headers: { ...authHeaders },
+    })
+    if (!res.ok) return []
+    const json = await res.json()
+    return json.data?.items || []
+  },
+
+  async fetchTickets(userEmail?: string): Promise<any[]> {
+    return this.fetchCustomerTickets(userEmail)
+  },
+
   async closeTicket(ticketId: string): Promise<any> {
-    const authHeaders = await this.getAuthHeaders()
+    const authHeaders = await this.getAuthHeaders({ isAdmin: true })
     const res = await fetch(`${BASE_URL}/tickets/${ticketId}/close`, {
       method: 'POST',
       headers: { ...authHeaders },
@@ -392,7 +409,7 @@ export const api = {
   },
 
   async updateTicketAction(ticketId: string, status: string, reply?: string): Promise<any> {
-    const authHeaders = await this.getAuthHeaders()
+    const authHeaders = await this.getAuthHeaders({ isAdmin: true })
     const res = await fetch(`${BASE_URL}/tickets/${ticketId}/action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders },

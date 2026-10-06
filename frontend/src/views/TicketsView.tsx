@@ -30,7 +30,7 @@ export const TicketsView = () => {
   const loadTickets = async () => {
     setLoading(true)
     try {
-      const items = await api.fetchTickets()
+      const items = await api.fetchAdminTickets()
       setTickets(items)
     } catch (err) {
       console.error('Failed to load tickets:', err)

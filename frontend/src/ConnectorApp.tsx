@@ -77,7 +77,7 @@ export function ConnectorApp() {
         api.fetchQueue(),
         api.fetchTallyStatus(),
         api.fetchCompanies(),
-        api.fetchTickets(),
+        api.fetchAdminTickets(),
       ])
 
       if (queueData.status === 'fulfilled') setQueueItems(queueData.value)
