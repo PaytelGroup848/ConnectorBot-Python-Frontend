@@ -279,7 +279,7 @@ export const CtrlBooksWidget = ({
         setTicketsList([])
         return
       }
-      const list = await api.fetchCustomerTickets(currentEmail, resolvedCompany, currentConvId)
+      const list = await api.fetchCustomerTickets(currentEmail, undefined, currentConvId)
       setTicketsList(list || [])
     } catch (err) {
       console.error('Failed to load tickets in widget:', err)
