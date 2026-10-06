@@ -108,7 +108,7 @@ export const CtrlBooksWidget = ({
     }
 
     syncCompany()
-    timer = window.setInterval(syncCompany, 600)
+    timer = window.setInterval(syncCompany, 2500)
 
     const handleCustomChange = (e: any) => {
       if (e.detail?.companyName) {

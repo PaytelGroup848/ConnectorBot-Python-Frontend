@@ -343,13 +343,17 @@ export const api = {
 
   // 6. Connected Tally Companies
   async fetchCompanies(): Promise<TallyCompany[]> {
-    const authHeaders = await this.getAuthHeaders()
-    const res = await fetch(`${BASE_URL}/connector/companies`, {
-      headers: { ...authHeaders },
-    })
-    if (!res.ok) throw new Error('Failed to load companies')
-    const json = await res.json()
-    return json.data || []
+    try {
+      const authHeaders = await this.getAuthHeaders()
+      const res = await fetch(`${BASE_URL}/connector/companies`, {
+        headers: { ...authHeaders },
+      })
+      if (!res.ok) return []
+      const json = await res.json()
+      return json.data || []
+    } catch (e) {
+      return []
+    }
   },
 
   // 7. Direct Sales Voucher Creation
@@ -428,12 +432,13 @@ export const api = {
     id: string
     title: string
     messages: ChatMessage[]
-  }> {
+  } | null> {
     const authHeaders = await this.getAuthHeaders()
+    if (!authHeaders['Authorization']) return null
     const res = await fetch(`${BASE_URL}/conversations/${conversationId}`, {
       headers: { ...authHeaders },
     })
-    if (!res.ok) throw new Error('Failed to load conversation')
+    if (!res.ok) return null
     const json = await res.json()
     const d = json.data || {}
     const rawMessages = d.messages || []
@@ -478,6 +483,7 @@ export const api = {
 
   async fetchRecentConversations(limit: number = 10): Promise<Array<{ id: string; title: string; created_at: string }>> {
     const authHeaders = await this.getAuthHeaders()
+    if (!authHeaders['Authorization']) return []
     const res = await fetch(`${BASE_URL}/conversations?page=1&page_size=${limit}`, {
       headers: { ...authHeaders },
     })

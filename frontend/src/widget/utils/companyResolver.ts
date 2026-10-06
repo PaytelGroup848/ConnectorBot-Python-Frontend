@@ -15,17 +15,17 @@ export function getCompanyName(kc: TallyCompany | any): string {
  */
 export async function getConnectedCompanies(forceRefresh = false): Promise<TallyCompany[]> {
   const now = Date.now()
-  if (!forceRefresh && cachedCompanies.length > 0 && now - lastFetchedAt < 30000) {
+  if (!forceRefresh && (cachedCompanies.length > 0 || lastFetchedAt > 0) && now - lastFetchedAt < 60000) {
     return cachedCompanies
   }
+  lastFetchedAt = now
   try {
     const list = await api.fetchCompanies()
     if (list && Array.isArray(list) && list.length > 0) {
       cachedCompanies = list
-      lastFetchedAt = now
     }
   } catch (err) {
-    console.warn('Could not fetch companies for auto-detection:', err)
+    // Cooldown in effect, graceful silent fallback
   }
   return cachedCompanies
 }
