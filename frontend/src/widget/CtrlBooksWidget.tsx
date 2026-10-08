@@ -761,15 +761,6 @@ export const CtrlBooksWidget = ({
               isRefreshing={isRefreshing}
               setIsMinimized={setIsMinimized}
               setIsOpen={setIsOpen}
-              toggleHistory={() => {
-                if (widgetTab === 'history') {
-                  setWidgetTab('chat')
-                } else {
-                  setWidgetTab('history')
-                  loadHistorySessions()
-                }
-              }}
-              isHistoryOpen={widgetTab === 'history'}
             />
 
             {/* Sleek Segmented Tab Switcher */}
