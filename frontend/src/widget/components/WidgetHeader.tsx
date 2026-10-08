@@ -1,5 +1,5 @@
 import React from 'react'
-import { Sparkles, ExternalLink, GripHorizontal, PlusCircle, RefreshCw, Minus, X } from 'lucide-react'
+import { Sparkles, ExternalLink, GripHorizontal, PlusCircle, RefreshCw, Minus, X, History } from 'lucide-react'
 import type { TallyStatus } from '../../core/types'
 
 interface WidgetHeaderProps {
@@ -13,6 +13,8 @@ interface WidgetHeaderProps {
   isRefreshing: boolean
   setIsMinimized: (min: boolean) => void
   setIsOpen: (open: boolean) => void
+  toggleHistory?: () => void
+  isHistoryOpen?: boolean
 }
 
 export const WidgetHeader: React.FC<WidgetHeaderProps> = ({
@@ -26,6 +28,8 @@ export const WidgetHeader: React.FC<WidgetHeaderProps> = ({
   isRefreshing,
   setIsMinimized,
   setIsOpen,
+  toggleHistory,
+  isHistoryOpen,
 }) => {
   return (
     <div
@@ -92,6 +96,18 @@ export const WidgetHeader: React.FC<WidgetHeaderProps> = ({
         >
           <PlusCircle className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
         </button>
+        {toggleHistory && (
+          <button
+            type="button"
+            onClick={toggleHistory}
+            title="Chat History (Purani Chate)"
+            className={`p-1.5 rounded-lg transition cursor-pointer ${
+              isHistoryOpen ? 'text-white bg-white/20' : 'text-emerald-200 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <History className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+          </button>
+        )}
         <button
           type="button"
           onClick={checkStatus}

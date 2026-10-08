@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import type { FormEvent } from 'react'
-import { Sparkles, RefreshCw, Ticket } from 'lucide-react'
+import { Sparkles, RefreshCw, Ticket, History } from 'lucide-react'
 import type { ChatMessage, QueueItem, TallyStatus } from '../core/types'
 import { api } from '../core/api'
 import { TicketsListTab } from './components/TicketsListTab'
+import { ChatHistoryTab, type HistorySessionItem } from './components/ChatHistoryTab'
 import { useWidgetAuth } from './hooks/useWidgetAuth'
 import { useWidgetPosition } from './hooks/useWidgetPosition'
 import { WidgetLauncher } from './components/WidgetLauncher'
@@ -190,6 +191,7 @@ export const CtrlBooksWidget = ({
   }
   const getScopedConvKey = () => `ctrlbooks_widget_conv_${getScopedUserPrefix()}`
   const getScopedMsgsKey = () => `ctrlbooks_widget_msgs_${getScopedUserPrefix()}`
+  const getScopedHistoryKey = () => `ctrlbooks_widget_history_${getScopedUserPrefix()}`
 
   const defaultWelcomeMessage: ChatMessage = {
     id: 'welcome-msg',
@@ -230,7 +232,9 @@ export const CtrlBooksWidget = ({
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null)
-  const [widgetTab, setWidgetTab] = useState<'chat' | 'tickets'>('chat')
+  const [widgetTab, setWidgetTab] = useState<'chat' | 'tickets' | 'history'>('chat')
+  const [historySessions, setHistorySessions] = useState<HistorySessionItem[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [ticketsList, setTicketsList] = useState<any[]>([])
   const [ticketsLoading, setTicketsLoading] = useState(false)
   const [ticketFilter, setTicketFilter] = useState<'ALL' | 'ACTIVE' | 'RESOLVED'>('ALL')
@@ -313,10 +317,140 @@ export const CtrlBooksWidget = ({
     if (typeof window !== 'undefined') {
       try {
         window.localStorage.setItem(getScopedMsgsKey(), JSON.stringify(newMsgs))
-        if (newConvId) window.localStorage.setItem(getScopedConvKey(), newConvId)
+        if (newConvId) {
+          window.localStorage.setItem(getScopedConvKey(), newConvId)
+          window.localStorage.setItem(`ctrlbooks_widget_msgs_${newConvId}`, JSON.stringify(newMsgs))
+        }
       } catch (e) {
         console.warn('Failed to sync widget state locally', e)
       }
+    }
+  }
+
+  const updateHistoryList = (convId: string, titleText: string) => {
+    if (typeof window === 'undefined' || !convId) return
+    try {
+      const key = getScopedHistoryKey()
+      const raw = window.localStorage.getItem(key)
+      let list: HistorySessionItem[] = raw ? JSON.parse(raw) : []
+      const existingIdx = list.findIndex((s) => s.id === convId)
+      const now = new Date().toISOString()
+      const cleanTitle = titleText.trim().replace(/^Namaste.*?(\n|$)/i, '').trim() || 'Conversation'
+      const displayTitle = cleanTitle.length > 50 ? cleanTitle.slice(0, 50) + '...' : cleanTitle
+
+      if (existingIdx >= 0) {
+        list[existingIdx].updatedAt = now
+        list[existingIdx].messageCount = (list[existingIdx].messageCount || 1) + 1
+        const item = list.splice(existingIdx, 1)[0]
+        list.unshift(item)
+      } else {
+        list.unshift({
+          id: convId,
+          title: displayTitle,
+          updatedAt: now,
+          messageCount: 2,
+          firstMessage: displayTitle,
+        })
+      }
+      if (list.length > 25) list = list.slice(0, 25)
+      window.localStorage.setItem(key, JSON.stringify(list))
+      setHistorySessions(list)
+    } catch (e) {
+      console.warn('Failed to update history sessions', e)
+    }
+  }
+
+  const loadHistorySessions = async () => {
+    setHistoryLoading(true)
+    try {
+      const key = getScopedHistoryKey()
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null
+      let localList: HistorySessionItem[] = raw ? JSON.parse(raw) : []
+
+      try {
+        const backendItems = await api.fetchRecentConversations(20)
+        if (backendItems && backendItems.length > 0) {
+          const map = new Map<string, HistorySessionItem>()
+          for (const b of backendItems) {
+            map.set(b.id, {
+              id: b.id,
+              title: b.title || 'Conversation',
+              updatedAt: b.created_at || new Date().toISOString(),
+              messageCount: 0,
+            })
+          }
+          for (const l of localList) {
+            if (map.has(l.id)) {
+              map.set(l.id, { ...map.get(l.id)!, ...l })
+            } else {
+              map.set(l.id, l)
+            }
+          }
+          localList = Array.from(map.values()).sort(
+            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          )
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem(key, JSON.stringify(localList))
+          }
+        }
+      } catch (_) {}
+
+      setHistorySessions(localList)
+    } catch (err) {
+      console.error('Failed to load history sessions:', err)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  const handleSelectSession = async (sessionId: string) => {
+    setIsLoading(true)
+    setWidgetTab('chat')
+    try {
+      const conv = await api.fetchConversation(sessionId)
+      if (conv && conv.messages && conv.messages.length > 0) {
+        setConversationId(conv.id)
+        setMessages(conv.messages)
+        syncToLocal(conv.messages, conv.id)
+        return
+      }
+
+      const cached = typeof window !== 'undefined' ? window.localStorage.getItem(`ctrlbooks_widget_msgs_${sessionId}`) : null
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setConversationId(sessionId)
+          setMessages(parsed)
+          syncToLocal(parsed, sessionId)
+          return
+        }
+      }
+    } catch (err) {
+      console.warn('Could not restore past session detail:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const key = getScopedHistoryKey()
+      const updated = historySessions.filter((s) => s.id !== sessionId)
+      setHistorySessions(updated)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(key, JSON.stringify(updated))
+        window.localStorage.removeItem(`ctrlbooks_widget_msgs_${sessionId}`)
+      }
+      try {
+        await api.deleteConversation(sessionId)
+      } catch (_) {}
+
+      if (conversationId === sessionId) {
+        handleNewChat()
+      }
+    } catch (err) {
+      console.error('Failed to delete session:', err)
     }
   }
 
@@ -335,6 +469,7 @@ export const CtrlBooksWidget = ({
       window.localStorage.removeItem(getScopedConvKey())
       window.localStorage.setItem(getScopedMsgsKey(), JSON.stringify(freshWelcome))
     }
+    setWidgetTab('chat')
   }
 
   const checkStatus = async () => {
@@ -382,6 +517,7 @@ export const CtrlBooksWidget = ({
   useEffect(() => {
     checkStatus()
     loadCustomerTickets()
+    loadHistorySessions()
   }, [resolvedCompany, resolvedTallyPort, conversationId])
 
   useEffect(() => {
@@ -440,6 +576,9 @@ export const CtrlBooksWidget = ({
       const withAssistant = [...withUser, res.message]
       setMessages(withAssistant)
       syncToLocal(withAssistant, nextConvId)
+      if (nextConvId) {
+        updateHistoryList(nextConvId, text)
+      }
       
       const voucherTool = res.tool_calls?.find(
         (t: any) =>
@@ -518,6 +657,9 @@ export const CtrlBooksWidget = ({
       const withVoice = [...messages, userMsg, assistantMsg]
       setMessages(withVoice)
       syncToLocal(withVoice, nextConvId)
+      if (nextConvId) {
+        updateHistoryList(nextConvId, transcript || 'Voice Query')
+      }
       await checkStatus()
       const ticketTool = res.tool_calls?.find(
         (t: any) => t.tool === 'create_support_ticket' || t.tool === 'check_support_ticket_status'
@@ -619,6 +761,15 @@ export const CtrlBooksWidget = ({
               isRefreshing={isRefreshing}
               setIsMinimized={setIsMinimized}
               setIsOpen={setIsOpen}
+              toggleHistory={() => {
+                if (widgetTab === 'history') {
+                  setWidgetTab('chat')
+                } else {
+                  setWidgetTab('history')
+                  loadHistorySessions()
+                }
+              }}
+              isHistoryOpen={widgetTab === 'history'}
             />
 
             {/* Sleek Segmented Tab Switcher */}
@@ -626,7 +777,7 @@ export const CtrlBooksWidget = ({
               <button
                 type="button"
                 onClick={() => setWidgetTab('chat')}
-                className={`flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                className={`flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   widgetTab === 'chat'
                     ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/80'
                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
@@ -641,7 +792,7 @@ export const CtrlBooksWidget = ({
                   setWidgetTab('tickets')
                   loadCustomerTickets()
                 }}
-                className={`flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                className={`flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   widgetTab === 'tickets'
                     ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/80'
                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
@@ -661,6 +812,32 @@ export const CtrlBooksWidget = ({
                   </span>
                 )}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWidgetTab('history')
+                  loadHistorySessions()
+                }}
+                className={`flex-1 flex items-center justify-center space-x-1.5 py-1.5 px-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  widgetTab === 'history'
+                    ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/80'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
+                }`}
+              >
+                <History className="w-3.5 h-3.5 text-emerald-600" />
+                <span>History</span>
+                {historySessions.length > 0 && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      widgetTab === 'history'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {historySessions.length}
+                  </span>
+                )}
+              </button>
             </div>
 
             {widgetTab === 'tickets' ? (
@@ -676,6 +853,17 @@ export const CtrlBooksWidget = ({
                 resolvedCompany={resolvedCompany}
                 activePort={activePort}
                 tallyStatus={tallyStatus}
+              />
+            ) : widgetTab === 'history' ? (
+              <ChatHistoryTab
+                sessions={historySessions}
+                activeConversationId={conversationId}
+                loading={historyLoading}
+                onSelectSession={handleSelectSession}
+                onDeleteSession={handleDeleteSession}
+                onNewChat={handleNewChat}
+                onBackToChat={() => setWidgetTab('chat')}
+                onRefresh={loadHistorySessions}
               />
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/70">

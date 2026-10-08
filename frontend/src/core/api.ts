@@ -435,7 +435,6 @@ export const api = {
     messages: ChatMessage[]
   } | null> {
     const authHeaders = await this.getAuthHeaders()
-    if (!authHeaders['Authorization']) return null
     const res = await fetch(`${BASE_URL}/conversations/${conversationId}`, {
       headers: { ...authHeaders },
     })
@@ -497,6 +496,20 @@ export const api = {
     const recents = await this.fetchRecentConversations(1)
     if (!recents || recents.length === 0) return null
     return this.fetchConversation(recents[0].id)
+  },
+
+  async deleteConversation(conversationId: string): Promise<boolean> {
+    const authHeaders = await this.getAuthHeaders()
+    if (!authHeaders['Authorization']) return false
+    try {
+      const res = await fetch(`${BASE_URL}/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: { ...authHeaders },
+      })
+      return res.ok
+    } catch {
+      return false
+    }
   },
 
   // 10. Administrator Console Authentication
